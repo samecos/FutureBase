@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: archplatform
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - user-service.yaml
+  - project-service.yaml
+  - java-services.yaml
+  - go-services.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: archplatform
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: archplatform/user-service
+    newTag: v1.0.0
+  - name: archplatform/project-service
+    newTag: v1.0.0
+  - name: archplatform/property-service
+    newTag: v1.0.0
+  - name: archplatform/version-service
+    newTag: v1.0.0
+  - name: archplatform/search-service
+    newTag: v1.0.0
+  - name: archplatform/collaboration-service
+    newTag: v1.0.0
+  - name: archplatform/geometry-service
+    newTag: v1.0.0
+  - name: archplatform/script-service
+    newTag: v1.0.0
+  - name: archplatform/file-service
+    newTag: v1.0.0
+  - name: archplatform/notification-service
+    newTag: v1.0.0
+  - name: archplatform/analytics-service
+    newTag: v1.0.0

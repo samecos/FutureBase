@@ -1,0 +1,53 @@
+service:
+  name: collaboration-service
+  version: "1.0.0"
+  environment: ${APP_ENV:development}
+
+database:
+  host: ${DB_HOST:localhost}
+  port: ${DB_PORT:5432}
+  user: ${DB_USER:postgres}
+  password: ${DB_PASSWORD:postgres}
+  dbname: ${DB_NAME:archdesign_platform}
+  sslmode: ${DB_SSLMODE:disable}
+  max_open_conns: 25
+  max_idle_conns: 10
+  conn_max_lifetime: 5m
+
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+  db: ${REDIS_DB:0}
+  pool_size: 100
+
+nats:
+  url: ${NATS_URL:nats://localhost:4222}
+  reconnect_wait: 1s
+  max_reconnects: 10
+  connect_timeout: 5s
+
+kafka:
+  brokers:
+    - ${KAFKA_BROKER:localhost:9092}
+  topic: collaboration-events
+  consumer_group: collaboration-service
+
+server:
+  grpc_port: ${GRPC_PORT:50051}
+  http_port: ${HTTP_PORT:8081}
+  websocket_port: ${WS_PORT:8082}
+  read_timeout: 30s
+  write_timeout: 30s
+  max_connection_idle: 15m
+  max_connection_age: 1h
+
+log:
+  level: ${LOG_LEVEL:info}
+  format: ${LOG_FORMAT:json}
+
+session:
+  ttl: 24h
+  cleanup_interval: 5m
+  max_participants: 100
+  rate_limit_per_sec: 100

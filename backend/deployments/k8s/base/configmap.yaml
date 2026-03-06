@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: archplatform-config
+  namespace: archplatform
+data:
+  # Database
+  DB_HOST: "postgres.archplatform.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "archplatform"
+  
+  # Redis
+  REDIS_HOST: "redis.archplatform.svc.cluster.local"
+  REDIS_PORT: "6379"
+  
+  # Kafka
+  KAFKA_BOOTSTRAP_SERVERS: "kafka.archplatform.svc.cluster.local:9092"
+  
+  # Elasticsearch
+  ELASTICSEARCH_URIS: "http://elasticsearch.archplatform.svc.cluster.local:9200"
+  
+  # MinIO
+  MINIO_ENDPOINT: "minio.archplatform.svc.cluster.local:9000"
+  
+  # Temporal
+  TEMPORAL_HOST: "temporal.archplatform.svc.cluster.local"
+  TEMPORAL_PORT: "7233"
+  
+  # NATS
+  NATS_HOST: "nats.archplatform.svc.cluster.local"
+  NATS_PORT: "4222"
+  
+  # Service Settings
+  LOG_LEVEL: "info"
+  ENV: "production"

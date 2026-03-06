@@ -1,0 +1,116 @@
+# Compiled files
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+bin/
+dist/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.sum
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+log/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Test coverage
+coverage.out
+coverage/
+*.cover
+*.coverage
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# Gradle
+.gradle/
+gradlew
+gradlew.bat
+build.gradle
+settings.gradle
+
+# Node (if any frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# OS
+Thumbs.db
+.DS_Store
+*.pem
+*.key
+*.crt
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# MinIO data
+.minio/
+minio_data/
+
+# Generated code
+shared/models/go/
+shared/models/java/
+*.pb.go
+*.pb.java
+
+# Monitoring data
+prometheus_data/
+grafana_data/
+
+# Misc
+*.pid
+*.seed
+*.pid.lock

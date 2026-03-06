@@ -1,0 +1,76 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: archplatform
+
+resources:
+  - ../../base
+
+commonLabels:
+  environment: production
+
+replicas:
+  - name: user-service
+    count: 3
+  - name: project-service
+    count: 3
+  - name: property-service
+    count: 3
+  - name: version-service
+    count: 3
+  - name: search-service
+    count: 3
+  - name: collaboration-service
+    count: 5
+  - name: geometry-service
+    count: 3
+  - name: file-service
+    count: 3
+  - name: notification-service
+    count: 3
+  - name: analytics-service
+    count: 3
+  - name: script-service
+    count: 2
+
+images:
+  - name: archplatform/user-service
+    newTag: v1.0.0
+  - name: archplatform/project-service
+    newTag: v1.0.0
+  - name: archplatform/property-service
+    newTag: v1.0.0
+  - name: archplatform/version-service
+    newTag: v1.0.0
+  - name: archplatform/search-service
+    newTag: v1.0.0
+  - name: archplatform/collaboration-service
+    newTag: v1.0.0
+  - name: archplatform/geometry-service
+    newTag: v1.0.0
+  - name: archplatform/script-service
+    newTag: v1.0.0
+  - name: archplatform/file-service
+    newTag: v1.0.0
+  - name: archplatform/notification-service
+    newTag: v1.0.0
+  - name: archplatform/analytics-service
+    newTag: v1.0.0
+
+patchesStrategicMerge:
+  - hpa.yaml
+
+patches:
+  - target:
+      kind: Ingress
+      name: archplatform-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: api.archplatform.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: api.archplatform.com
+      - op: replace
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-prod

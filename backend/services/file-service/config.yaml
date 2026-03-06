@@ -1,0 +1,43 @@
+server:
+  http_port: 8086
+  grpc_port: 9096
+  max_upload_size: 104857600  # 100MB
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: archplatform
+  schema: files
+  ssl_mode: disable
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+minio:
+  endpoint: localhost:9000
+  access_key: minioadmin
+  secret_key: minioadmin
+  use_ssl: false
+  bucket: archplatform-files
+
+thumbnails:
+  enabled: true
+  max_width: 512
+  max_height: 512
+  quality: 85
+  format: jpeg
+
+conversion:
+  enabled: true
+  temp_dir: /tmp/conversions
+  max_file_size: 50000000  # 50MB
+  timeout_seconds: 300
+
+logging:
+  level: info
+  format: json

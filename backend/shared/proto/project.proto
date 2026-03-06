@@ -1,0 +1,866 @@
+syntax = "proto3";
+
+package archdesign.project.v1;
+
+option go_package = "github.com/archplatform/backend/shared/proto/project;projectpb";
+option java_multiple_files = true;
+option java_package = "com.archdesign.project.proto";
+option java_outer_classname = "ProjectProto";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "common.proto";
+
+// ============================================
+// Project Service
+// ============================================
+
+service ProjectService {
+  // Project CRUD
+  rpc CreateProject(CreateProjectRequest) returns (Project);
+  rpc GetProject(GetProjectRequest) returns (Project);
+  rpc UpdateProject(UpdateProjectRequest) returns (Project);
+  rpc DeleteProject(DeleteProjectRequest) returns (google.protobuf.Empty);
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  rpc ArchiveProject(ArchiveProjectRequest) returns (Project);
+  rpc RestoreProject(RestoreProjectRequest) returns (Project);
+  rpc DuplicateProject(DuplicateProjectRequest) returns (Project);
+  
+  // Project Members
+  rpc AddProjectMember(AddProjectMemberRequest) returns (ProjectMember);
+  rpc RemoveProjectMember(RemoveProjectMemberRequest) returns (google.protobuf.Empty);
+  rpc UpdateProjectMember(UpdateProjectMemberRequest) returns (ProjectMember);
+  rpc ListProjectMembers(ListProjectMembersRequest) returns (ListProjectMembersResponse);
+  
+  // Designs
+  rpc CreateDesign(CreateDesignRequest) returns (Design);
+  rpc GetDesign(GetDesignRequest) returns (Design);
+  rpc UpdateDesign(UpdateDesignRequest) returns (Design);
+  rpc DeleteDesign(DeleteDesignRequest) returns (google.protobuf.Empty);
+  rpc ListDesigns(ListDesignsRequest) returns (ListDesignsResponse);
+  rpc DuplicateDesign(DuplicateDesignRequest) returns (Design);
+  rpc MoveDesign(MoveDesignRequest) returns (Design);
+  
+  // Layers
+  rpc CreateLayer(CreateLayerRequest) returns (Layer);
+  rpc GetLayer(GetLayerRequest) returns (Layer);
+  rpc UpdateLayer(UpdateLayerRequest) returns (Layer);
+  rpc DeleteLayer(DeleteLayerRequest) returns (google.protobuf.Empty);
+  rpc ListLayers(ListLayersRequest) returns (ListLayersResponse);
+  rpc ReorderLayers(ReorderLayersRequest) returns (ListLayersResponse);
+  rpc MergeLayers(MergeLayersRequest) returns (Layer);
+  
+  // Folders
+  rpc CreateFolder(CreateFolderRequest) returns (Folder);
+  rpc GetFolder(GetFolderRequest) returns (Folder);
+  rpc UpdateFolder(UpdateFolderRequest) returns (Folder);
+  rpc DeleteFolder(DeleteFolderRequest) returns (google.protobuf.Empty);
+  rpc ListFolders(ListFoldersRequest) returns (ListFoldersResponse);
+  rpc MoveToFolder(MoveToFolderRequest) returns (google.protobuf.Empty);
+  
+  // Tags
+  rpc CreateTag(CreateTagRequest) returns (Tag);
+  rpc UpdateTag(UpdateTagRequest) returns (Tag);
+  rpc DeleteTag(DeleteTagRequest) returns (google.protobuf.Empty);
+  rpc ListTags(ListTagsRequest) returns (ListTagsResponse);
+  rpc AssignTag(AssignTagRequest) returns (google.protobuf.Empty);
+  rpc RemoveTag(RemoveTagRequest) returns (google.protobuf.Empty);
+  
+  // Templates
+  rpc CreateTemplate(CreateTemplateRequest) returns (ProjectTemplate);
+  rpc GetTemplate(GetTemplateRequest) returns (ProjectTemplate);
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc ApplyTemplate(ApplyTemplateRequest) returns (Project);
+  
+  // Statistics
+  rpc GetProjectStatistics(GetProjectStatisticsRequest) returns (ProjectStatistics);
+  rpc GetDesignStatistics(GetDesignStatisticsRequest) returns (DesignStatistics);
+}
+
+// ============================================
+// Project Messages
+// ============================================
+
+message Project {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  string project_code = 5;
+  ProjectStatus status = 6;
+  ProjectType project_type = 7;
+  Visibility visibility = 8;
+  string thumbnail_url = 9;
+  repeated string tags = 10;
+  Location location = 11;
+  double area_total_sqm = 12;
+  Money budget = 13;
+  DateRange schedule = 14;
+  int32 progress_percent = 15;
+  google.protobuf.Struct settings = 16;
+  google.protobuf.Struct custom_fields = 17;
+  int32 design_count = 18;
+  int32 member_count = 19;
+  int64 storage_used_bytes = 20;
+  string current_version_id = 21;
+  AuditInfo audit = 22;
+}
+
+message ProjectMember {
+  string id = 1;
+  string project_id = 2;
+  string user_id = 3;
+  ProjectRole role = 4;
+  repeated string permissions = 5;
+  google.protobuf.Timestamp joined_at = 6;
+  string joined_by = 7;
+  UserInfo user = 8;
+}
+
+message UserInfo {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string avatar_url = 6;
+}
+
+// ============================================
+// Design Messages
+// ============================================
+
+message Design {
+  string id = 1;
+  string project_id = 2;
+  string tenant_id = 3;
+  string name = 4;
+  string description = 5;
+  DesignType design_type = 6;
+  string file_format = 7;
+  int64 file_size_bytes = 8;
+  string file_hash = 9;
+  string storage_path = 10;
+  string thumbnail_url = 11;
+  DesignStatus status = 12;
+  string scale = 13;
+  Unit unit = 14;
+  BoundingBox2D bounds = 15;
+  int32 element_count = 16;
+  int32 layer_count = 17;
+  int32 version_count = 18;
+  string current_version_id = 19;
+  string parent_design_id = 20;
+  bool is_template = 21;
+  string template_category = 22;
+  google.protobuf.Struct metadata = 23;
+  repeated string tags = 24;
+  AuditInfo audit = 25;
+}
+
+message DesignVersion {
+  string id = 1;
+  string design_id = 2;
+  string project_id = 3;
+  int32 version_number = 4;
+  string version_name = 5;
+  string description = 6;
+  string change_summary = 7;
+  string snapshot_id = 8;
+  string file_path = 9;
+  int64 file_size_bytes = 10;
+  string file_hash = 11;
+  int32 element_count = 12;
+  bool is_major_version = 13;
+  bool is_published = 14;
+  google.protobuf.Timestamp published_at = 15;
+  string published_by = 16;
+  string parent_version_id = 17;
+  string merge_source_id = 18;
+  google.protobuf.Struct metadata = 19;
+  AuditInfo audit = 20;
+}
+
+// ============================================
+// Layer Messages
+// ============================================
+
+message Layer {
+  string id = 1;
+  string design_id = 2;
+  string project_id = 3;
+  string tenant_id = 4;
+  string name = 5;
+  string description = 6;
+  int32 display_order = 7;
+  bool is_visible = 8;
+  bool is_locked = 9;
+  bool is_printable = 10;
+  string color = 11;
+  string line_type = 12;
+  double line_weight = 13;
+  int32 transparency = 14;
+  int32 element_count = 15;
+  string parent_layer_id = 16;
+  google.protobuf.Struct metadata = 17;
+  AuditInfo audit = 18;
+}
+
+// ============================================
+// Folder Messages
+// ============================================
+
+message Folder {
+  string id = 1;
+  string project_id = 2;
+  string tenant_id = 3;
+  string name = 4;
+  string description = 5;
+  string parent_folder_id = 6;
+  int32 item_count = 7;
+  int32 display_order = 8;
+  google.protobuf.Struct metadata = 9;
+  AuditInfo audit = 10;
+}
+
+// ============================================
+// Tag Messages
+// ============================================
+
+message Tag {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string color = 4;
+  string description = 5;
+  int32 usage_count = 6;
+  AuditInfo audit = 7;
+}
+
+// ============================================
+// Template Messages
+// ============================================
+
+message ProjectTemplate {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  string thumbnail_url = 5;
+  ProjectType project_type = 6;
+  repeated string tags = 7;
+  bool is_system = 8;
+  bool is_public = 9;
+  google.protobuf.Struct structure = 10;
+  google.protobuf.Struct default_settings = 11;
+  int32 usage_count = 12;
+  AuditInfo audit = 13;
+}
+
+// ============================================
+// Statistics Messages
+// ============================================
+
+message ProjectStatistics {
+  string project_id = 1;
+  int32 total_designs = 2;
+  int32 total_elements = 3;
+  int32 total_layers = 4;
+  int64 total_storage_bytes = 5;
+  int32 total_members = 6;
+  int32 active_sessions = 7;
+  google.protobuf.Timestamp last_activity_at = 8;
+  DesignTypeDistribution design_types = 9;
+  ElementTypeDistribution element_types = 10;
+  ActivityTimeline activity_timeline = 11;
+}
+
+message DesignStatistics {
+  string design_id = 1;
+  int32 element_count = 2;
+  int32 layer_count = 3;
+  int32 version_count = 4;
+  double total_area = 5;
+  double total_volume = 6;
+  BoundingBox3D bounds = 7;
+  ElementTypeDistribution element_types = 8;
+  LayerStatistics layer_stats = 9;
+  google.protobuf.Timestamp last_modified_at = 10;
+}
+
+message DesignTypeDistribution {
+  int32 floor_plans = 1;
+  int32 elevations = 2;
+  int32 sections = 3;
+  int32 models_3d = 4;
+  int32 details = 5;
+  int32 sketches = 6;
+  int32 others = 7;
+}
+
+message ElementTypeDistribution {
+  map<string, int32> counts = 1;
+}
+
+message ActivityTimeline {
+  repeated DailyActivity daily_activities = 1;
+}
+
+message DailyActivity {
+  string date = 1;
+  int32 edits = 2;
+  int32 views = 3;
+  int32 comments = 4;
+  int32 new_elements = 5;
+}
+
+message LayerStatistics {
+  int32 total_layers = 1;
+  int32 visible_layers = 2;
+  int32 locked_layers = 3;
+  repeated LayerElementCount elements_per_layer = 4;
+}
+
+message LayerElementCount {
+  string layer_id = 1;
+  string layer_name = 2;
+  int32 element_count = 3;
+}
+
+// ============================================
+// Common Types
+// ============================================
+
+message Location {
+  string country = 1;
+  string city = 2;
+  string address = 3;
+  Coordinates coordinates = 4;
+}
+
+message Coordinates {
+  double latitude = 1;
+  double longitude = 2;
+  double elevation = 3;
+}
+
+message Money {
+  string currency = 1;
+  double amount = 2;
+}
+
+message DateRange {
+  google.protobuf.Timestamp start_date = 1;
+  google.protobuf.Timestamp target_end_date = 2;
+  google.protobuf.Timestamp actual_end_date = 3;
+}
+
+message BoundingBox2D {
+  double min_x = 1;
+  double min_y = 2;
+  double max_x = 3;
+  double max_y = 4;
+}
+
+message BoundingBox3D {
+  double min_x = 1;
+  double min_y = 2;
+  double min_z = 3;
+  double max_x = 4;
+  double max_y = 5;
+  double max_z = 6;
+}
+
+// ============================================
+// Request/Response Messages
+// ============================================
+
+// Project CRUD
+message CreateProjectRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string description = 3;
+  string project_code = 4;
+  ProjectType project_type = 5;
+  Visibility visibility = 6;
+  string template_id = 7;
+  google.protobuf.Struct settings = 8;
+  string created_by = 9;
+}
+
+message GetProjectRequest {
+  string id = 1;
+  string tenant_id = 2;
+  bool include_members = 3;
+}
+
+message UpdateProjectRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  ProjectStatus status = 5;
+  Visibility visibility = 6;
+  string thumbnail_url = 7;
+  repeated string tags = 8;
+  Location location = 9;
+  Money budget = 10;
+  DateRange schedule = 11;
+  int32 progress_percent = 12;
+  google.protobuf.Struct settings = 13;
+  google.protobuf.Struct custom_fields = 14;
+}
+
+message DeleteProjectRequest {
+  string id = 1;
+  string tenant_id = 2;
+  bool permanent = 3;
+}
+
+message ListProjectsRequest {
+  string tenant_id = 1;
+  string search = 2;
+  repeated ProjectStatus statuses = 3;
+  repeated ProjectType types = 4;
+  repeated string tags = 5;
+  string created_by = 6;
+  PaginationRequest pagination = 7;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  PaginationResponse pagination = 2;
+}
+
+message ArchiveProjectRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message RestoreProjectRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message DuplicateProjectRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string new_name = 3;
+  bool include_designs = 4;
+  bool include_members = 5;
+}
+
+// Project Members
+message AddProjectMemberRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+  ProjectRole role = 4;
+  repeated string permissions = 5;
+  string added_by = 6;
+}
+
+message RemoveProjectMemberRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+}
+
+message UpdateProjectMemberRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  string user_id = 3;
+  ProjectRole role = 4;
+  repeated string permissions = 5;
+}
+
+message ListProjectMembersRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  ProjectRole role = 3;
+  PaginationRequest pagination = 4;
+}
+
+message ListProjectMembersResponse {
+  repeated ProjectMember members = 1;
+  PaginationResponse pagination = 2;
+}
+
+// Designs
+message CreateDesignRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  DesignType design_type = 5;
+  string scale = 6;
+  Unit unit = 7;
+  string parent_design_id = 8;
+  string folder_id = 9;
+  google.protobuf.Struct metadata = 10;
+  string created_by = 11;
+}
+
+message GetDesignRequest {
+  string id = 1;
+  string tenant_id = 2;
+  bool include_versions = 3;
+}
+
+message UpdateDesignRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  DesignStatus status = 5;
+  string scale = 6;
+  Unit unit = 7;
+  google.protobuf.Struct metadata = 8;
+}
+
+message DeleteDesignRequest {
+  string id = 1;
+  string tenant_id = 2;
+  bool permanent = 3;
+}
+
+message ListDesignsRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  string folder_id = 3;
+  string search = 4;
+  repeated DesignType types = 5;
+  repeated DesignStatus statuses = 6;
+  repeated string tags = 7;
+  string created_by = 8;
+  PaginationRequest pagination = 9;
+}
+
+message ListDesignsResponse {
+  repeated Design designs = 1;
+  PaginationResponse pagination = 2;
+}
+
+message DuplicateDesignRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string new_name = 3;
+  bool include_elements = 4;
+  bool include_history = 5;
+}
+
+message MoveDesignRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string target_project_id = 3;
+  string target_folder_id = 4;
+}
+
+// Layers
+message CreateLayerRequest {
+  string design_id = 1;
+  string project_id = 2;
+  string tenant_id = 3;
+  string name = 4;
+  string description = 5;
+  string color = 6;
+  string line_type = 7;
+  double line_weight = 8;
+  string parent_layer_id = 9;
+  google.protobuf.Struct metadata = 10;
+}
+
+message GetLayerRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message UpdateLayerRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  bool is_visible = 5;
+  bool is_locked = 6;
+  bool is_printable = 7;
+  string color = 8;
+  string line_type = 9;
+  double line_weight = 10;
+  int32 transparency = 11;
+  google.protobuf.Struct metadata = 12;
+}
+
+message DeleteLayerRequest {
+  string id = 1;
+  string tenant_id = 2;
+  bool delete_elements = 3;
+  string target_layer_id = 4;
+}
+
+message ListLayersRequest {
+  string design_id = 1;
+  string tenant_id = 2;
+  bool include_system = 3;
+}
+
+message ListLayersResponse {
+  repeated Layer layers = 1;
+}
+
+message ReorderLayersRequest {
+  string design_id = 1;
+  string tenant_id = 2;
+  repeated string layer_ids = 3;
+}
+
+message MergeLayersRequest {
+  string design_id = 1;
+  string tenant_id = 2;
+  repeated string layer_ids = 3;
+  string target_layer_id = 4;
+}
+
+// Folders
+message CreateFolderRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  string parent_folder_id = 5;
+}
+
+message GetFolderRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message UpdateFolderRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  string parent_folder_id = 5;
+}
+
+message DeleteFolderRequest {
+  string id = 1;
+  string tenant_id = 2;
+  bool delete_contents = 3;
+}
+
+message ListFoldersRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  string parent_folder_id = 3;
+}
+
+message ListFoldersResponse {
+  repeated Folder folders = 1;
+}
+
+message MoveToFolderRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  repeated string design_ids = 3;
+  string folder_id = 4;
+}
+
+// Tags
+message CreateTagRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string color = 3;
+  string description = 4;
+}
+
+message UpdateTagRequest {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string color = 4;
+  string description = 5;
+}
+
+message DeleteTagRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message ListTagsRequest {
+  string tenant_id = 1;
+  string search = 2;
+  int32 limit = 3;
+}
+
+message ListTagsResponse {
+  repeated Tag tags = 1;
+}
+
+message AssignTagRequest {
+  string tag_id = 1;
+  string tenant_id = 2;
+  string design_id = 3;
+}
+
+message RemoveTagRequest {
+  string tag_id = 1;
+  string tenant_id = 2;
+  string design_id = 3;
+}
+
+// Templates
+message CreateTemplateRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string description = 3;
+  string source_project_id = 4;
+  ProjectType project_type = 5;
+  repeated string tags = 6;
+  bool is_public = 7;
+}
+
+message GetTemplateRequest {
+  string id = 1;
+  string tenant_id = 2;
+}
+
+message ListTemplatesRequest {
+  string tenant_id = 1;
+  ProjectType project_type = 2;
+  bool include_system = 3;
+  bool include_public = 4;
+  string search = 5;
+}
+
+message ListTemplatesResponse {
+  repeated ProjectTemplate templates = 1;
+}
+
+message ApplyTemplateRequest {
+  string template_id = 1;
+  string tenant_id = 2;
+  string project_name = 3;
+  google.protobuf.Struct overrides = 4;
+  string created_by = 5;
+}
+
+// Statistics
+message GetProjectStatisticsRequest {
+  string project_id = 1;
+  string tenant_id = 2;
+  TimeRange time_range = 3;
+}
+
+message GetDesignStatisticsRequest {
+  string design_id = 1;
+  string tenant_id = 2;
+}
+
+// Audit Info
+message AuditInfo {
+  string created_by = 1;
+  google.protobuf.Timestamp created_at = 2;
+  string updated_by = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  string deleted_by = 5;
+  google.protobuf.Timestamp deleted_at = 6;
+  int32 version = 7;
+}
+
+message TimeRange {
+  google.protobuf.Timestamp start = 1;
+  google.protobuf.Timestamp end = 2;
+}
+
+message PaginationRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string sort_by = 3;
+  bool sort_desc = 4;
+}
+
+message PaginationResponse {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 total_pages = 3;
+  int64 total_count = 4;
+  bool has_next = 5;
+  bool has_previous = 6;
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum ProjectStatus {
+  PROJECT_STATUS_UNSPECIFIED = 0;
+  PROJECT_STATUS_DRAFT = 1;
+  PROJECT_STATUS_ACTIVE = 2;
+  PROJECT_STATUS_IN_PROGRESS = 3;
+  PROJECT_STATUS_UNDER_REVIEW = 4;
+  PROJECT_STATUS_APPROVED = 5;
+  PROJECT_STATUS_ARCHIVED = 6;
+  PROJECT_STATUS_DELETED = 7;
+}
+
+enum ProjectType {
+  PROJECT_TYPE_UNSPECIFIED = 0;
+  PROJECT_TYPE_BUILDING = 1;
+  PROJECT_TYPE_INTERIOR = 2;
+  PROJECT_TYPE_LANDSCAPE = 3;
+  PROJECT_TYPE_URBAN = 4;
+  PROJECT_TYPE_INDUSTRIAL = 5;
+  PROJECT_TYPE_INFRASTRUCTURE = 6;
+  PROJECT_TYPE_OTHER = 7;
+}
+
+enum Visibility {
+  VISIBILITY_UNSPECIFIED = 0;
+  VISIBILITY_PRIVATE = 1;
+  VISIBILITY_TEAM = 2;
+  VISIBILITY_ORGANIZATION = 3;
+  VISIBILITY_PUBLIC = 4;
+}
+
+enum ProjectRole {
+  PROJECT_ROLE_UNSPECIFIED = 0;
+  PROJECT_ROLE_OWNER = 1;
+  PROJECT_ROLE_MANAGER = 2;
+  PROJECT_ROLE_EDITOR = 3;
+  PROJECT_ROLE_REVIEWER = 4;
+  PROJECT_ROLE_VIEWER = 5;
+}
+
+enum DesignType {
+  DESIGN_TYPE_UNSPECIFIED = 0;
+  DESIGN_TYPE_FLOOR_PLAN = 1;
+  DESIGN_TYPE_ELEVATION = 2;
+  DESIGN_TYPE_SECTION = 3;
+  DESIGN_TYPE_3D_MODEL = 4;
+  DESIGN_TYPE_DETAIL = 5;
+  DESIGN_TYPE_SKETCH = 6;
+  DESIGN_TYPE_CONCEPT = 7;
+  DESIGN_TYPE_SITE_PLAN = 8;
+  DESIGN_TYPE_REFLECTED_CEILING = 9;
+  DESIGN_TYPE_SCHEDULE = 10;
+  DESIGN_TYPE_OTHER = 11;
+}
+
+enum DesignStatus {
+  DESIGN_STATUS_UNSPECIFIED = 0;
+  DESIGN_STATUS_DRAFT = 1;
+  DESIGN_STATUS_IN_PROGRESS = 2;
+  DESIGN_STATUS_UNDER_REVIEW = 3;
+  DESIGN_STATUS_APPROVED = 4;
+  DESIGN_STATUS_ARCHIVED = 5;
+}
+
+enum Unit {
+  UNIT_UNSPECIFIED = 0;
+  UNIT_MILLIMETER = 1;
+  UNIT_CENTIMETER = 2;
+  UNIT_METER = 3;
+  UNIT_INCH = 4;
+  UNIT_FOOT = 5;
+}

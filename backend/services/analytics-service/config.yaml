@@ -1,0 +1,51 @@
+server:
+  http_port: 8090
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: archplatform
+  schema: analytics
+  ssl_mode: disable
+
+clickhouse:
+  host: localhost
+  port: 9000
+  database: analytics
+  username: default
+  password: ""
+  debug: false
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+kafka:
+  brokers:
+    - localhost:9092
+  group_id: analytics-service
+
+analytics:
+  retention_days: 90
+  batch_size: 1000
+  aggregation_interval_minutes: 5
+  
+  metrics:
+    - project_usage
+    - user_activity
+    - design_metrics
+    - collaboration_stats
+    - storage_usage
+
+reports:
+  enabled: true
+  templates_dir: ./templates
+  default_format: pdf
+
+logging:
+  level: info
+  format: json

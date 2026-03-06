@@ -1,0 +1,116 @@
+# Pre-commit hooks configuration
+# Install: pip install pre-commit
+# Setup: pre-commit install
+
+repos:
+  # General File Checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(\.idea/|target/|build/)
+      - id: end-of-file-fixer
+        exclude: ^(\.idea/|target/|build/)
+      - id: check-yaml
+      - id: check-json
+      - id: check-xml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: forbid-new-submodules
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Java - Spotless Check (requires Maven)
+  - repo: local
+    hooks:
+      - id: spotless-check
+        name: Spotless Check (Java)
+        entry: mvn spotless:check -f
+        language: system
+        files: \.java$
+        pass_filenames: false
+        require_serial: true
+        stages: [commit]
+
+  # Java - Checkstyle (requires Maven)
+  - repo: local
+    hooks:
+      - id: checkstyle
+        name: Checkstyle (Java)
+        entry: mvn checkstyle:check -f
+        language: system
+        files: \.java$
+        pass_filenames: false
+        require_serial: true
+        stages: [commit]
+
+  # Go - Format
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-vet
+      - id: go-imports
+      - id: go-cyclo
+        args: ['-over=15']
+      - id: validate-toml
+      - id: no-go-testing
+      - id: golangci-lint
+        args: ['--fix']
+
+  # Go - Lint
+  - repo: local
+    hooks:
+      - id: go-lint
+        name: Go Lint
+        entry: golangci-lint run --fix
+        language: system
+        files: \.go$
+        pass_filenames: false
+        require_serial: true
+
+  # Proto - Buf Lint
+  - repo: https://github.com/bufbuild/buf
+    rev: v1.28.1
+    hooks:
+      - id: buf-format
+      - id: buf-lint
+
+  # Secrets Detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package.lock.json
+
+  # Markdown Linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix']
+
+  # SQL Formatting
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 2.3.5
+    hooks:
+      - id: sqlfluff-lint
+      - id: sqlfluff-fix
+
+  # Docker Linting
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.1-beta
+    hooks:
+      - id: hadolint
+        args: ['--ignore', 'DL3018']
+
+  # Shell Script Checks
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: ['-x']

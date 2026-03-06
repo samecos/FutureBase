@@ -1,0 +1,123 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: archplatform
+
+jobs:
+  # ==========================================
+  # Deploy to Development
+  # ==========================================
+  deploy-dev:
+    runs-on: ubuntu-latest
+    environment: development
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+      
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+      
+      - name: Configure Kubeconfig
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_DEV }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+      
+      - name: Update Image Tags
+        working-directory: deployments/k8s/overlays/dev
+        run: |
+          kustomize edit set image \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/user-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/user-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/project-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/project-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/property-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/property-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/version-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/version-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/search-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/search-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/collaboration-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/collaboration-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/geometry-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/geometry-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/script-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/script-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/file-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/file-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/notification-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/notification-service:${{ github.sha }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/analytics-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/analytics-service:${{ github.sha }}
+      
+      - name: Deploy to Dev
+        working-directory: deployments/k8s/overlays/dev
+        run: |
+          export KUBECONFIG=../../../kubeconfig
+          kustomize build . | kubectl apply -f -
+          kubectl rollout status deployment/dev-user-service -n archplatform-dev --timeout=300s
+
+  # ==========================================
+  # Deploy to Production
+  # ==========================================
+  deploy-prod:
+    runs-on: ubuntu-latest
+    environment: production
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [deploy-dev]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+      
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+      
+      - name: Configure Kubeconfig
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PROD }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+      
+      - name: Update Image Tags
+        working-directory: deployments/k8s/overlays/prod
+        run: |
+          kustomize edit set image \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/user-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/user-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/project-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/project-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/property-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/property-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/version-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/version-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/search-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/search-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/collaboration-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/collaboration-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/geometry-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/geometry-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/script-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/script-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/file-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/file-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/notification-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/notification-service:${{ github.ref_name }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/analytics-service=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/analytics-service:${{ github.ref_name }}
+      
+      - name: Deploy to Production
+        working-directory: deployments/k8s/overlays/prod
+        run: |
+          export KUBECONFIG=../../../kubeconfig
+          kustomize build . | kubectl apply -f -
+          
+          # Wait for rollouts
+          kubectl rollout status deployment/user-service -n archplatform --timeout=300s
+          kubectl rollout status deployment/project-service -n archplatform --timeout=300s
+      
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false

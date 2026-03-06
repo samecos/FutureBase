@@ -1,0 +1,60 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: archplatform-dev
+
+resources:
+  - ../../base
+
+namePrefix: dev-
+
+commonLabels:
+  environment: dev
+
+replicas:
+  - name: user-service
+    count: 1
+  - name: project-service
+    count: 1
+  - name: collaboration-service
+    count: 1
+  - name: geometry-service
+    count: 1
+  - name: file-service
+    count: 1
+
+images:
+  - name: archplatform/user-service
+    newTag: dev-latest
+  - name: archplatform/project-service
+    newTag: dev-latest
+  - name: archplatform/property-service
+    newTag: dev-latest
+  - name: archplatform/version-service
+    newTag: dev-latest
+  - name: archplatform/search-service
+    newTag: dev-latest
+  - name: archplatform/collaboration-service
+    newTag: dev-latest
+  - name: archplatform/geometry-service
+    newTag: dev-latest
+  - name: archplatform/script-service
+    newTag: dev-latest
+  - name: archplatform/file-service
+    newTag: dev-latest
+  - name: archplatform/notification-service
+    newTag: dev-latest
+  - name: archplatform/analytics-service
+    newTag: dev-latest
+
+patches:
+  - target:
+      kind: Ingress
+      name: archplatform-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: api-dev.archplatform.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: api-dev.archplatform.com

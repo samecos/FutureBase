@@ -1,0 +1,872 @@
+syntax = "proto3";
+
+package archdesign.geometry.v1;
+
+option go_package = "github.com/archplatform/backend/shared/proto/geometry;geometrypb";
+option java_multiple_files = true;
+option java_package = "com.archdesign.geometry.proto";
+option java_outer_classname = "GeometryProto";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "common.proto";
+
+// ============================================
+// Geometry Service
+// ============================================
+
+service GeometryService {
+  // CRUD Operations
+  rpc CreateGeometry(CreateGeometryRequest) returns (Geometry);
+  rpc GetGeometry(GetGeometryRequest) returns (Geometry);
+  rpc UpdateGeometry(UpdateGeometryRequest) returns (Geometry);
+  rpc DeleteGeometry(DeleteGeometryRequest) returns (google.protobuf.Empty);
+  rpc BatchCreateGeometry(BatchCreateGeometryRequest) returns (BatchGeometryResponse);
+  rpc BatchUpdateGeometry(BatchUpdateGeometryRequest) returns (BatchGeometryResponse);
+  rpc BatchDeleteGeometry(BatchDeleteGeometryRequest) returns (google.protobuf.Empty);
+  
+  // Spatial Queries
+  rpc QueryByBoundingBox(BoundingBoxQueryRequest) returns (GeometryCollection);
+  rpc QueryByRadius(RadiusQueryRequest) returns (GeometryCollection);
+  rpc QueryNearest(NearestQueryRequest) returns (GeometryCollection);
+  rpc QueryIntersecting(IntersectionQueryRequest) returns (GeometryCollection);
+  rpc SpatialQuery(SpatialQueryRequest) returns (GeometryCollection);
+  
+  // Geometric Operations
+  rpc Transform(TransformRequest) returns (Geometry);
+  rpc BooleanOperation(BooleanOperationRequest) returns (Geometry);
+  rpc CalculateArea(CalculateRequest) returns (CalculateResponse);
+  rpc CalculateVolume(CalculateRequest) returns (CalculateResponse);
+  rpc CalculateDistance(DistanceRequest) returns (DistanceResponse);
+  rpc CalculateCentroid(CalculateRequest) returns (Point);
+  rpc CalculateBoundingBox(CalculateRequest) returns (BoundingBox3D);
+  
+  // Validation & Repair
+  rpc ValidateGeometry(ValidateRequest) returns (ValidateResponse);
+  rpc RepairGeometry(RepairRequest) returns (Geometry);
+  rpc SimplifyGeometry(SimplifyRequest) returns (Geometry);
+  
+  // Import/Export
+  rpc ImportGeometry(ImportRequest) returns (ImportResponse);
+  rpc ExportGeometry(ExportRequest) returns (ExportResponse);
+  rpc ConvertFormat(ConvertRequest) returns (ConvertResponse);
+  
+  // BIM Operations
+  rpc ParseBIMFile(ParseBIMFileRequest) returns (stream ParseProgress);
+  rpc GetBIMMetadata(GetBIMMetadataRequest) returns (BIMMetadata);
+  rpc ExtractBIMElements(ExtractBIMElementsRequest) returns (ExtractBIMElementsResponse);
+}
+
+// ============================================
+// Geometry Types
+// ============================================
+
+message Geometry {
+  string id = 1;
+  string element_id = 2;
+  string design_id = 3;
+  string project_id = 4;
+  string tenant_id = 5;
+  GeometryType type = 6;
+  oneof geometry_data {
+    Point point = 7;
+    Line line = 8;
+    Polyline polyline = 9;
+    Polygon polygon = 10;
+    Circle circle = 11;
+    Arc arc = 12;
+    Mesh mesh = 13;
+    Brep brep = 14;
+    NurbsSurface nurbs_surface = 15;
+    Compound compound = 16;
+  }
+  BoundingBox3D bbox = 17;
+  Transform transform = 18;
+  google.protobuf.Struct properties = 19;
+  string srid = 20;  // Spatial Reference System Identifier
+  int32 version = 21;
+  google.protobuf.Timestamp created_at = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  string created_by = 24;
+  string updated_by = 25;
+}
+
+// ============================================
+// Basic Geometry Types
+// ============================================
+
+message Point {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Line {
+  Point start = 1;
+  Point end = 2;
+}
+
+message Polyline {
+  repeated Point points = 1;
+  bool is_closed = 2;
+}
+
+message Polygon {
+  repeated Point exterior_ring = 1;
+  repeated LinearRing interior_rings = 2;
+  bool is_planar = 3;
+}
+
+message LinearRing {
+  repeated Point points = 1;
+}
+
+message Circle {
+  Point center = 1;
+  double radius = 2;
+  Vector3 normal = 3;
+}
+
+message Arc {
+  Point center = 1;
+  double radius = 2;
+  double start_angle = 3;  // radians
+  double end_angle = 4;    // radians
+  Vector3 normal = 5;
+}
+
+// ============================================
+// 3D Geometry Types
+// ============================================
+
+message Mesh {
+  repeated Vertex vertices = 1;
+  repeated Face faces = 2;
+  repeated Vector3 normals = 3;
+  repeated UVCoordinate uvs = 4;
+  BoundingBox3D bounds = 5;
+}
+
+message Vertex {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Face {
+  repeated int32 vertex_indices = 1;
+  int32 material_index = 2;
+  Vector3 normal = 3;
+}
+
+message Vector3 {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message UVCoordinate {
+  double u = 1;
+  double v = 2;
+}
+
+message Brep {
+  repeated BrepFace faces = 1;
+  repeated BrepEdge edges = 2;
+  repeated BrepVertex vertices = 3;
+  repeated BrepLoop loops = 4;
+  bool is_solid = 5;
+  bool is_manifold = 6;
+  double tolerance = 7;
+}
+
+message BrepFace {
+  string surface_id = 1;
+  repeated string loop_ids = 2;
+  bool orientation = 3;
+  google.protobuf.Struct surface = 4;
+}
+
+message BrepEdge {
+  string curve_id = 1;
+  string start_vertex = 2;
+  string end_vertex = 3;
+  double tolerance = 4;
+}
+
+message BrepVertex {
+  string id = 1;
+  Point point = 2;
+  double tolerance = 3;
+}
+
+message BrepLoop {
+  string id = 1;
+  repeated string edge_ids = 2;
+  bool is_outer = 3;
+}
+
+message NurbsSurface {
+  int32 degree_u = 1;
+  int32 degree_v = 2;
+  repeated double knots_u = 3;
+  repeated double knots_v = 4;
+  repeated NurbsControlPoint control_points = 5;
+  repeated double weights = 6;
+  bool is_rational = 7;
+  bool is_periodic_u = 8;
+  bool is_periodic_v = 9;
+}
+
+message NurbsControlPoint {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double w = 4;
+}
+
+message Compound {
+  repeated string child_geometry_ids = 1;
+  Transform transform = 2;
+}
+
+// ============================================
+// Transform & Bounding Box
+// ============================================
+
+message Transform {
+  // 4x4 transformation matrix (column-major order)
+  repeated double matrix = 1;
+  
+  // Alternative: decomposed transform
+  Point translation = 2;
+  Rotation rotation = 3;
+  Point scale = 4;
+}
+
+message Rotation {
+  oneof rotation_type {
+    Quaternion quaternion = 1;
+    EulerAngles euler = 2;
+    AxisAngle axis_angle = 3;
+  }
+}
+
+message Quaternion {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double w = 4;
+}
+
+message EulerAngles {
+  double pitch = 1;  // X axis
+  double yaw = 2;    // Y axis
+  double roll = 3;   // Z axis
+}
+
+message AxisAngle {
+  Vector3 axis = 1;
+  double angle = 2;  // radians
+}
+
+message BoundingBox3D {
+  Point min = 1;
+  Point max = 2;
+  Point center = 3;
+  double width = 4;
+  double height = 5;
+  double depth = 6;
+}
+
+// ============================================
+// CRUD Request/Response Messages
+// ============================================
+
+message CreateGeometryRequest {
+  string element_id = 1;
+  string design_id = 2;
+  string project_id = 3;
+  string tenant_id = 4;
+  Geometry geometry = 5;
+  bool skip_validation = 6;
+}
+
+message GetGeometryRequest {
+  string id = 1;
+  string tenant_id = 2;
+  bool include_history = 3;
+}
+
+message UpdateGeometryRequest {
+  string id = 1;
+  string tenant_id = 2;
+  Geometry geometry = 3;
+  bool create_new_version = 4;
+  google.protobuf.FieldMask update_mask = 5;
+}
+
+message DeleteGeometryRequest {
+  string id = 1;
+  string tenant_id = 2;
+  bool permanent = 3;
+}
+
+message BatchCreateGeometryRequest {
+  string design_id = 1;
+  string project_id = 2;
+  string tenant_id = 3;
+  repeated Geometry geometries = 4;
+  bool skip_validation = 5;
+}
+
+message BatchUpdateGeometryRequest {
+  string tenant_id = 1;
+  repeated Geometry geometries = 2;
+  bool create_new_versions = 3;
+}
+
+message BatchDeleteGeometryRequest {
+  string tenant_id = 1;
+  repeated string ids = 2;
+  bool permanent = 3;
+}
+
+message BatchGeometryResponse {
+  repeated Geometry geometries = 1;
+  repeated GeometryError errors = 2;
+  int32 success_count = 3;
+  int32 failed_count = 4;
+}
+
+message GeometryError {
+  string id = 1;
+  ErrorCode code = 2;
+  string message = 3;
+  string field = 4;
+}
+
+message GeometryCollection {
+  repeated Geometry geometries = 1;
+  int32 total_count = 2;
+  string next_page_token = 3;
+}
+
+// ============================================
+// Query Request/Response Messages
+// ============================================
+
+message BoundingBoxQueryRequest {
+  string tenant_id = 1;
+  string project_id = 2;
+  string design_id = 3;
+  BoundingBox3D bbox = 4;
+  SpatialRelation relation = 5;
+  repeated GeometryType types = 6;
+  int32 page_size = 7;
+  string page_token = 8;
+}
+
+message RadiusQueryRequest {
+  string tenant_id = 1;
+  string project_id = 2;
+  Point center = 3;
+  double radius = 4;  // meters
+  repeated GeometryType types = 5;
+  int32 limit = 6;
+}
+
+message NearestQueryRequest {
+  string tenant_id = 1;
+  string project_id = 2;
+  Point reference_point = 3;
+  int32 limit = 4;
+  double max_distance = 5;
+  repeated GeometryType types = 6;
+}
+
+message IntersectionQueryRequest {
+  string tenant_id = 1;
+  string project_id = 2;
+  string design_id = 3;
+  Geometry geometry = 4;
+  double tolerance = 5;
+  int32 page_size = 6;
+  string page_token = 7;
+}
+
+message SpatialQueryRequest {
+  string tenant_id = 1;
+  string project_id = 2;
+  string design_id = 3;
+  oneof query {
+    BoundingBox3D bbox = 4;
+    Point point = 5;
+    Geometry geometry = 6;
+  }
+  SpatialOperator operator = 7;
+  double distance = 8;
+  repeated GeometryType types = 9;
+  int32 page_size = 10;
+  string page_token = 11;
+}
+
+// ============================================
+// Transform & Operation Messages
+// ============================================
+
+message TransformRequest {
+  string id = 1;
+  string tenant_id = 2;
+  oneof transform {
+    TranslateTransform translate = 3;
+    RotateTransform rotate = 4;
+    ScaleTransform scale = 5;
+    MirrorTransform mirror = 6;
+    MatrixTransform matrix = 7;
+  }
+  bool create_new_version = 8;
+}
+
+message TranslateTransform {
+  double dx = 1;
+  double dy = 2;
+  double dz = 3;
+}
+
+message RotateTransform {
+  Point origin = 1;
+  Vector3 axis = 2;
+  double angle = 3;  // radians
+}
+
+message ScaleTransform {
+  Point origin = 1;
+  double sx = 2;
+  double sy = 3;
+  double sz = 4;
+  bool uniform = 5;
+}
+
+message MirrorTransform {
+  Point point_on_plane = 1;
+  Vector3 normal = 2;
+}
+
+message MatrixTransform {
+  repeated double values = 1;  // 16 elements
+}
+
+message BooleanOperationRequest {
+  string geometry_id_1 = 1;
+  string geometry_id_2 = 2;
+  BooleanOperation operation = 3;
+  string tenant_id = 4;
+}
+
+// ============================================
+// Calculation Messages
+// ============================================
+
+message CalculateRequest {
+  string id = 1;
+  string tenant_id = 2;
+  CalculationUnit unit = 3;
+  CalculationPrecision precision = 4;
+}
+
+message CalculateResponse {
+  double value = 1;
+  string unit = 2;
+  CalculationPrecision precision = 3;
+  google.protobuf.Timestamp calculated_at = 4;
+}
+
+message DistanceRequest {
+  oneof geometry_1 {
+    string geometry_id_1 = 1;
+    Point point_1 = 2;
+  }
+  oneof geometry_2 {
+    string geometry_id_2 = 3;
+    Point point_2 = 4;
+  }
+  string tenant_id = 5;
+  DistanceType type = 6;
+}
+
+message DistanceResponse {
+  double distance = 1;
+  Point closest_point_1 = 2;
+  Point closest_point_2 = 3;
+}
+
+// ============================================
+// Validation & Repair Messages
+// ============================================
+
+message ValidateRequest {
+  string id = 1;
+  string tenant_id = 2;
+  ValidationLevel level = 3;
+  repeated ValidationRule rules = 4;
+}
+
+message ValidateResponse {
+  bool is_valid = 1;
+  repeated ValidationError errors = 2;
+  repeated ValidationWarning warnings = 3;
+  ValidationLevel checked_level = 4;
+}
+
+message ValidationRule {
+  ValidationRuleType type = 1;
+  double tolerance = 2;
+  google.protobuf.Struct parameters = 3;
+}
+
+message ValidationError {
+  ErrorCode code = 1;
+  string message = 2;
+  string location = 3;
+  Severity severity = 4;
+}
+
+message ValidationWarning {
+  string message = 1;
+  string location = 2;
+  string suggestion = 3;
+}
+
+message RepairRequest {
+  string id = 1;
+  string tenant_id = 2;
+  RepairStrategy strategy = 3;
+  repeated ValidationRule rules = 4;
+}
+
+message SimplifyRequest {
+  string id = 1;
+  string tenant_id = 2;
+  double tolerance = 3;  // meters
+  bool preserve_topology = 4;
+}
+
+// ============================================
+// Import/Export Messages
+// ============================================
+
+message ImportRequest {
+  string tenant_id = 1;
+  string project_id = 2;
+  string design_id = 3;
+  FileFormat format = 4;
+  bytes data = 5;
+  ImportOptions options = 6;
+}
+
+message ImportOptions {
+  bool skip_validation = 1;
+  UnitSystem target_unit = 2;
+  CoordinateSystem target_crs = 3;
+  bool merge_duplicates = 4;
+  double tolerance = 5;
+}
+
+message ImportResponse {
+  repeated Geometry geometries = 1;
+  ImportStatistics statistics = 2;
+  repeated ImportWarning warnings = 3;
+}
+
+message ExportRequest {
+  string tenant_id = 1;
+  repeated string geometry_ids = 2;
+  FileFormat format = 3;
+  ExportOptions options = 4;
+}
+
+message ExportOptions {
+  UnitSystem source_unit = 1;
+  CoordinateSystem source_crs = 2;
+  bool include_metadata = 3;
+  int32 precision = 4;
+  bool binary = 5;
+}
+
+message ExportResponse {
+  bytes data = 1;
+  string filename = 2;
+  string mime_type = 3;
+  int64 size_bytes = 4;
+}
+
+message ConvertRequest {
+  Geometry geometry = 1;
+  FileFormat target_format = 2;
+  ConversionOptions options = 3;
+}
+
+message ConvertResponse {
+  bytes data = 1;
+  FileFormat format = 2;
+}
+
+message ImportStatistics {
+  int32 total_count = 1;
+  int32 imported_count = 2;
+  int32 skipped_count = 3;
+  int32 error_count = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+}
+
+message ImportWarning {
+  WarningType type = 1;
+  string message = 2;
+  string entity_name = 3;
+}
+
+// ============================================
+// BIM Messages
+// ============================================
+
+message ParseBIMFileRequest {
+  string tenant_id = 1;
+  string project_id = 2;
+  string file_path = 3;
+  FileFormat format = 4;
+  BIMParseOptions options = 5;
+}
+
+message ParseProgress {
+  ParseStatus status = 1;
+  double progress_percent = 2;
+  int32 processed_count = 3;
+  int32 total_count = 4;
+  string current_element = 5;
+  string message = 6;
+  repeated ParseError errors = 7;
+}
+
+message BIMParseOptions {
+  bool extract_geometry = 1;
+  bool extract_properties = 2;
+  bool extract_relationships = 3;
+  repeated string element_types = 4;
+  double geometry_tolerance = 5;
+}
+
+message GetBIMMetadataRequest {
+  string file_path = 1;
+  string tenant_id = 2;
+}
+
+message BIMMetadata {
+  string file_path = 1;
+  FileFormat format = 2;
+  string schema_version = 3;
+  string application_name = 4;
+  string application_version = 5;
+  google.protobuf.Timestamp created_at = 6;
+  string author = 7;
+  string organization = 8;
+  int32 element_count = 9;
+  repeated string element_types = 10;
+  BoundingBox3D project_bounds = 11;
+}
+
+message ExtractBIMElementsRequest {
+  string file_path = 1;
+  string tenant_id = 2;
+  string project_id = 3;
+  repeated string element_types = 4;
+  string filter = 5;
+}
+
+message ExtractBIMElementsResponse {
+  repeated Geometry geometries = 1;
+  int32 total_count = 2;
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum GeometryType {
+  GEOMETRY_TYPE_UNSPECIFIED = 0;
+  GEOMETRY_TYPE_POINT = 1;
+  GEOMETRY_TYPE_LINE = 2;
+  GEOMETRY_TYPE_POLYLINE = 3;
+  GEOMETRY_TYPE_POLYGON = 4;
+  GEOMETRY_TYPE_CIRCLE = 5;
+  GEOMETRY_TYPE_ARC = 6;
+  GEOMETRY_TYPE_MESH = 7;
+  GEOMETRY_TYPE_BREP = 8;
+  GEOMETRY_TYPE_NURBS_SURFACE = 9;
+  GEOMETRY_TYPE_COMPOUND = 10;
+}
+
+enum SpatialOperator {
+  SPATIAL_OPERATOR_UNSPECIFIED = 0;
+  SPATIAL_OPERATOR_INTERSECTS = 1;
+  SPATIAL_OPERATOR_CONTAINS = 2;
+  SPATIAL_OPERATOR_WITHIN = 3;
+  SPATIAL_OPERATOR_TOUCHES = 4;
+  SPATIAL_OPERATOR_OVERLAPS = 5;
+  SPATIAL_OPERATOR_DISJOINT = 6;
+  SPATIAL_OPERATOR_WITHIN_DISTANCE = 7;
+}
+
+enum SpatialRelation {
+  SPATIAL_RELATION_UNSPECIFIED = 0;
+  SPATIAL_RELATION_INTERSECT = 1;
+  SPATIAL_RELATION_CONTAIN = 2;
+  SPATIAL_RELATION_WITHIN = 3;
+}
+
+enum BooleanOperation {
+  BOOLEAN_OPERATION_UNSPECIFIED = 0;
+  BOOLEAN_OPERATION_UNION = 1;
+  BOOLEAN_OPERATION_INTERSECTION = 2;
+  BOOLEAN_OPERATION_DIFFERENCE = 3;
+}
+
+enum CalculationUnit {
+  CALCULATION_UNIT_UNSPECIFIED = 0;
+  CALCULATION_UNIT_SQUARE_METERS = 1;
+  CALCULATION_UNIT_SQUARE_FEET = 2;
+  CALCULATION_UNIT_SQUARE_MILLIMETERS = 3;
+  CALCULATION_UNIT_CUBIC_METERS = 4;
+  CALCULATION_UNIT_CUBIC_FEET = 5;
+  CALCULATION_UNIT_CUBIC_MILLIMETERS = 6;
+  CALCULATION_UNIT_MILLIMETERS = 7;
+  CALCULATION_UNIT_CENTIMETERS = 8;
+  CALCULATION_UNIT_METERS = 9;
+  CALCULATION_UNIT_FEET = 10;
+  CALCULATION_UNIT_INCHES = 11;
+}
+
+enum CalculationPrecision {
+  CALCULATION_PRECISION_UNSPECIFIED = 0;
+  CALCULATION_PRECISION_LOW = 1;
+  CALCULATION_PRECISION_MEDIUM = 2;
+  CALCULATION_PRECISION_HIGH = 3;
+  CALCULATION_PRECISION_EXACT = 4;
+}
+
+enum ValidationLevel {
+  VALIDATION_LEVEL_UNSPECIFIED = 0;
+  VALIDATION_LEVEL_BASIC = 1;
+  VALIDATION_LEVEL_STANDARD = 2;
+  VALIDATION_LEVEL_STRICT = 3;
+}
+
+enum ValidationRuleType {
+  VALIDATION_RULE_TYPE_UNSPECIFIED = 0;
+  VALIDATION_RULE_TYPE_SELF_INTERSECTION = 1;
+  VALIDATION_RULE_TYPE_DEGENERATE = 2;
+  VALIDATION_RULE_TYPE_TOPOLOGY = 3;
+  VALIDATION_RULE_TYPE_TOLERANCE = 4;
+}
+
+enum RepairStrategy {
+  REPAIR_STRATEGY_UNSPECIFIED = 0;
+  REPAIR_STRATEGY_AUTO = 1;
+  REPAIR_STRATEGY_CONSERVATIVE = 2;
+  REPAIR_STRATEGY_AGGRESSIVE = 3;
+}
+
+enum DistanceType {
+  DISTANCE_TYPE_UNSPECIFIED = 0;
+  DISTANCE_TYPE_MINIMUM = 1;
+  DISTANCE_TYPE_MAXIMUM = 2;
+  DISTANCE_TYPE_CENTROID = 3;
+}
+
+enum FileFormat {
+  FILE_FORMAT_UNSPECIFIED = 0;
+  FILE_FORMAT_OBJ = 1;
+  FILE_FORMAT_STL = 2;
+  FILE_FORMAT_PLY = 3;
+  FILE_FORMAT_FBX = 4;
+  FILE_FORMAT_GLTF = 5;
+  FILE_FORMAT_GLB = 6;
+  FILE_FORMAT_DAE = 7;
+  FILE_FORMAT_STEP = 8;
+  FILE_FORMAT_IGES = 9;
+  FILE_FORMAT_IFC = 10;
+  FILE_FORMAT_DWG = 11;
+  FILE_FORMAT_DXF = 12;
+  FILE_FORMAT_REVIT = 13;
+  FILE_FORMAT_SKETCHUP = 14;
+  FILE_FORMAT_RHINO = 15;
+  FILE_FORMAT_GEOJSON = 16;
+  FILE_FORMAT_WKT = 17;
+  FILE_FORMAT_WKB = 18;
+}
+
+enum UnitSystem {
+  UNIT_SYSTEM_UNSPECIFIED = 0;
+  UNIT_SYSTEM_METRIC = 1;
+  UNIT_SYSTEM_IMPERIAL = 2;
+}
+
+enum CoordinateSystem {
+  COORDINATE_SYSTEM_UNSPECIFIED = 0;
+  COORDINATE_SYSTEM_WGS84 = 1;
+  COORDINATE_SYSTEM_LOCAL = 2;
+  COORDINATE_SYSTEM_PROJECTED = 3;
+}
+
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  ERROR_CODE_INVALID_GEOMETRY = 1;
+  ERROR_CODE_SELF_INTERSECTION = 2;
+  ERROR_CODE_DEGENERATE_GEOMETRY = 3;
+  ERROR_CODE_INVALID_TOPOLOGY = 4;
+  ERROR_CODE_NAN_VALUES = 5;
+  ERROR_CODE_ZERO_LENGTH = 6;
+  ERROR_CODE_ZERO_AREA = 7;
+  ERROR_CODE_OPEN_SOLID = 8;
+  ERROR_CODE_NON_MANIFOLD = 9;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_WARNING = 2;
+  SEVERITY_ERROR = 3;
+  SEVERITY_CRITICAL = 4;
+}
+
+enum ParseStatus {
+  PARSE_STATUS_UNSPECIFIED = 0;
+  PARSE_STATUS_PENDING = 1;
+  PARSE_STATUS_PARSING = 2;
+  PARSE_STATUS_COMPLETED = 3;
+  PARSE_STATUS_FAILED = 4;
+  PARSE_STATUS_CANCELLED = 5;
+}
+
+enum WarningType {
+  WARNING_TYPE_UNSPECIFIED = 0;
+  WARNING_TYPE_UNSUPPORTED_ENTITY = 1;
+  WARNING_TYPE_LOST_DATA = 2;
+  WARNING_TYPE_UNIT_CONVERSION = 3;
+  WARNING_TYPE_PRECISION_LOSS = 4;
+}
+
+message ParseError {
+  string entity_id = 1;
+  string entity_type = 2;
+  string message = 3;
+}
+
+message ConversionOptions {
+  bool preserve_structure = 1;
+  int32 tessellation_level = 2;
+  bool include_normals = 3;
+  bool include_uvs = 4;
+}

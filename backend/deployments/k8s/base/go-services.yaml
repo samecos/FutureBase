@@ -1,0 +1,171 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collaboration-service
+  namespace: archplatform
+  labels:
+    app: collaboration-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: collaboration-service
+  template:
+    metadata:
+      labels:
+        app: collaboration-service
+    spec:
+      containers:
+        - name: collaboration-service
+          image: archplatform/collaboration-service:latest
+          ports:
+            - containerPort: 8081
+              name: http
+            - containerPort: 50051
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: archplatform-config
+            - secretRef:
+                name: archplatform-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: collaboration-service
+  namespace: archplatform
+spec:
+  selector:
+    app: collaboration-service
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http
+    - port: 50051
+      targetPort: 50051
+      name: grpc
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: geometry-service
+  namespace: archplatform
+  labels:
+    app: geometry-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: geometry-service
+  template:
+    metadata:
+      labels:
+        app: geometry-service
+    spec:
+      containers:
+        - name: geometry-service
+          image: archplatform/geometry-service:latest
+          ports:
+            - containerPort: 8082
+              name: http
+            - containerPort: 50052
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: archplatform-config
+            - secretRef:
+                name: archplatform-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: geometry-service
+  namespace: archplatform
+spec:
+  selector:
+    app: geometry-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+      name: http
+    - port: 50052
+      targetPort: 50052
+      name: grpc
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-service
+  namespace: archplatform
+  labels:
+    app: file-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: file-service
+  template:
+    metadata:
+      labels:
+        app: file-service
+    spec:
+      containers:
+        - name: file-service
+          image: archplatform/file-service:latest
+          ports:
+            - containerPort: 8086
+              name: http
+          envFrom:
+            - configMapRef:
+                name: archplatform-config
+            - secretRef:
+                name: archplatform-secrets
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: temp-storage
+              mountPath: /tmp
+      volumes:
+        - name: temp-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: file-service
+  namespace: archplatform
+spec:
+  selector:
+    app: file-service
+  ports:
+    - port: 8086
+      targetPort: 8086
+      name: http
+  type: ClusterIP

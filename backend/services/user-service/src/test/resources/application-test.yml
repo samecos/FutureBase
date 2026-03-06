@@ -1,0 +1,70 @@
+# Test configuration for User Service
+spring:
+  application:
+    name: user-service-test
+
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  # Disable Redis for tests
+  redis:
+    enabled: false
+
+  # Disable Kafka for tests
+  kafka:
+    enabled: false
+    bootstrap-servers: localhost:9092
+
+# Logging
+logging:
+  level:
+    com.archplatform.user: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# JWT Configuration
+jwt:
+  secret: test-secret-key-for-integration-tests-only-do-not-use-in-production-it-needs-to-be-at-least-256-bits-long-for-security
+  expiration: 3600000  # 1 hour
+  refresh-expiration: 86400000  # 24 hours
+
+# Security
+security:
+  password:
+    min-length: 8
+    require-uppercase: true
+    require-lowercase: true
+    require-digit: true
+    require-special: false
+  login:
+    max-failed-attempts: 5
+    lock-duration-minutes: 30
+
+# MFA
+mfa:
+  issuer: ArchPlatform-Test
+  code-length: 6
+  time-step: 30
+
+# Server
+server:
+  port: 0  # Random port for tests

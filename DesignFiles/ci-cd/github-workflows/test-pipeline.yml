@@ -1,0 +1,508 @@
+# 半自动化建筑设计平台 - CI/CD测试流水线
+# 工具: GitHub Actions
+# 用途: 自动化执行各类测试
+
+name: Test Pipeline
+
+on:
+  push:
+    branches: [main, develop, 'feature/*']
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # 每天凌晨2点运行完整测试
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '18'
+  JAVA_VERSION: '17'
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  # ==================== 代码质量检查 ====================
+  code-quality:
+    name: 代码质量检查
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        run: npm run format:check
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Run Checkstyle
+        run: ./mvnw checkstyle:check
+
+  # ==================== 单元测试 ====================
+  unit-tests-java:
+    name: Java单元测试
+    runs-on: ubuntu-latest
+    needs: code-quality
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run unit tests
+        run: ./mvnw test -Dtest="*Test" --batch-mode
+
+      - name: Generate coverage report
+        run: ./mvnw jacoco:report --batch-mode
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: target/site/jacoco/jacoco.xml
+          flags: java-unit-tests
+          name: java-coverage
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: java-test-results
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
+
+  unit-tests-python:
+    name: Python单元测试
+    runs-on: ubuntu-latest
+    needs: code-quality
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd python-service
+          pip install -r requirements.txt
+          pip install -r requirements-test.txt
+
+      - name: Run unit tests
+        run: |
+          cd python-service
+          pytest --cov=src --cov-report=xml --cov-report=html -v
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: python-service/coverage.xml
+          flags: python-unit-tests
+          name: python-coverage
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-test-results
+          path: |
+            python-service/htmlcov/
+            python-service/coverage.xml
+
+  # ==================== API测试 ====================
+  api-tests:
+    name: API集成测试
+    runs-on: ubuntu-latest
+    needs: [unit-tests-java, unit-tests-python]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build application
+        run: ./mvnw package -DskipTests --batch-mode
+
+      - name: Start application
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/test_db
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+          SPRING_REDIS_HOST: localhost
+          SPRING_REDIS_PORT: 6379
+        run: |
+          java -jar target/*.jar &
+          sleep 30
+
+      - name: Wait for application
+        run: |
+          timeout 60 bash -c 'until curl -s http://localhost:8080/health; do sleep 2; done'
+
+      - name: Run API tests (REST Assured)
+        run: |
+          cd test-automation/api-tests
+          ./gradlew test
+
+      - name: Run Postman tests
+        run: |
+          npm install -g newman
+          newman run test-automation/api-tests/postman/collection.json \
+            -e test-automation/api-tests/postman/environment.json \
+            --reporters cli,json,junit \
+            --reporter-json-export newman-report.json \
+            --reporter-junit-export newman-report.xml
+
+      - name: Upload API test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-results
+          path: |
+            test-automation/api-tests/build/reports/
+            newman-report.json
+            newman-report.xml
+
+  # ==================== 性能测试 ====================
+  performance-tests:
+    name: 性能测试
+    runs-on: ubuntu-latest
+    needs: api-tests
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Start test environment
+        run: docker-compose -f docker-compose.test.yml up -d
+
+      - name: Wait for services
+        run: sleep 60
+
+      - name: Run API response time test
+        run: |
+          cd test-automation/performance-tests/k6
+          k6 run --out json=results-api.json api-response-time.js
+
+      - name: Run concurrent collaboration test
+        run: |
+          cd test-automation/performance-tests/k6
+          k6 run --out json=results-collab.json concurrent-collaboration.js
+
+      - name: Run load test
+        run: |
+          cd test-automation/performance-tests/k6
+          k6 run --out json=results-load.json load-test.js
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-results
+          path: |
+            test-automation/performance-tests/k6/results-*.json
+
+      - name: Analyze performance results
+        run: |
+          cd test-automation/performance-tests/k6
+          node analyze-results.js
+
+  # ==================== 安全测试 ====================
+  security-tests:
+    name: 安全测试
+    runs-on: ubuntu-latest
+    needs: api-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install requests pytest
+
+      - name: Start test environment
+        run: docker-compose -f docker-compose.test.yml up -d
+
+      - name: Wait for services
+        run: sleep 60
+
+      - name: Run sandbox security tests
+        run: |
+          cd test-automation/security-tests
+          python sandbox-security-test.py
+
+      - name: Run OWASP ZAP scan
+        uses: zaproxy/action-baseline@v0.9.0
+        with:
+          target: 'http://localhost:8080'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
+      - name: Upload security test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-test-results
+          path: |
+            test-automation/security-tests/results/
+            report_*
+
+  # ==================== E2E测试 ====================
+  e2e-tests:
+    name: E2E测试
+    runs-on: ubuntu-latest
+    needs: api-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: |
+          cd test-automation/e2e-tests/playwright
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Start test environment
+        run: docker-compose -f docker-compose.test.yml up -d
+
+      - name: Wait for services
+        run: sleep 60
+
+      - name: Run Playwright tests
+        run: |
+          cd test-automation/e2e-tests/playwright
+          npx playwright test
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            test-automation/e2e-tests/playwright/playwright-report/
+            test-automation/e2e-tests/playwright/test-results/
+
+  # ==================== 契约测试 ====================
+  contract-tests:
+    name: 契约测试
+    runs-on: ubuntu-latest
+    needs: api-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Pact
+        run: npm install -g @pact-foundation/pact-cli
+
+      - name: Run consumer contract tests
+        run: |
+          cd test-automation/contract-tests
+          npm test
+
+      - name: Verify provider contracts
+        run: |
+          cd test-automation/contract-tests
+          npm run verify
+
+      - name: Upload contract test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contract-test-results
+          path: |
+            test-automation/contract-tests/pacts/
+            test-automation/contract-tests/logs/
+
+  # ==================== 测试报告汇总 ====================
+  test-report:
+    name: 测试报告汇总
+    runs-on: ubuntu-latest
+    needs: [unit-tests-java, unit-tests-python, api-tests, e2e-tests]
+    if: always()
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate combined report
+        run: |
+          mkdir -p combined-report
+          
+          # 汇总测试结果
+          echo "# 测试报告汇总" > combined-report/summary.md
+          echo "" >> combined-report/summary.md
+          echo "## 执行时间: $(date)" >> combined-report/summary.md
+          echo "" >> combined-report/summary.md
+          
+          # Java单元测试
+          echo "## Java单元测试" >> combined-report/summary.md
+          if [ -d "java-test-results" ]; then
+            echo "- ✓ 测试完成" >> combined-report/summary.md
+          else
+            echo "- ✗ 测试失败或未执行" >> combined-report/summary.md
+          fi
+          echo "" >> combined-report/summary.md
+          
+          # Python单元测试
+          echo "## Python单元测试" >> combined-report/summary.md
+          if [ -d "python-test-results" ]; then
+            echo "- ✓ 测试完成" >> combined-report/summary.md
+          else
+            echo "- ✗ 测试失败或未执行" >> combined-report/summary.md
+          fi
+          echo "" >> combined-report/summary.md
+          
+          # API测试
+          echo "## API测试" >> combined-report/summary.md
+          if [ -d "api-test-results" ]; then
+            echo "- ✓ 测试完成" >> combined-report/summary.md
+          else
+            echo "- ✗ 测试失败或未执行" >> combined-report/summary.md
+          fi
+          echo "" >> combined-report/summary.md
+          
+          # E2E测试
+          echo "## E2E测试" >> combined-report/summary.md
+          if [ -d "playwright-report" ]; then
+            echo "- ✓ 测试完成" >> combined-report/summary.md
+          else
+            echo "- ✗ 测试失败或未执行" >> combined-report/summary.md
+          fi
+          echo "" >> combined-report/summary.md
+
+      - name: Upload combined report
+        uses: actions/upload-artifact@v4
+        with:
+          name: combined-test-report
+          path: combined-report/
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('combined-report/summary.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+  # ==================== 部署决策 ====================
+  deploy-gate:
+    name: 部署门禁
+    runs-on: ubuntu-latest
+    needs: [unit-tests-java, unit-tests-python, api-tests, e2e-tests, security-tests]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Check test results
+        run: |
+          echo "检查所有测试结果..."
+          
+          # 这里可以添加更复杂的部署决策逻辑
+          # 例如：检查代码覆盖率、性能指标等
+          
+          echo "✓ 所有测试通过，允许部署"
+
+      - name: Notify deployment ready
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "🚀 测试全部通过，准备部署到生产环境",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*测试流水线完成*\n所有测试已通过，代码可以部署到生产环境。"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

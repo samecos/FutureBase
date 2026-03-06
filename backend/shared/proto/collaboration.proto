@@ -1,0 +1,482 @@
+syntax = "proto3";
+
+package archdesign.collaboration.v1;
+
+option go_package = "github.com/archplatform/backend/shared/proto/collaboration;collaborationpb";
+option java_multiple_files = true;
+option java_package = "com.archdesign.collaboration.proto";
+option java_outer_classname = "CollaborationProto";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+import "common.proto";
+
+// ============================================
+// Collaboration Service
+// ============================================
+
+service CollaborationService {
+  // Session Management
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc JoinSession(JoinSessionRequest) returns (stream CollaborationEvent);
+  rpc LeaveSession(LeaveSessionRequest) returns (google.protobuf.Empty);
+  rpc GetSessionInfo(GetSessionInfoRequest) returns (SessionInfo);
+  rpc ListActiveSessions(ListActiveSessionsRequest) returns (ListActiveSessionsResponse);
+  rpc CloseSession(CloseSessionRequest) returns (google.protobuf.Empty);
+  
+  // Operation Sync (Bidirectional streaming)
+  rpc SyncOperations(stream OperationBatch) returns (stream OperationAck);
+  rpc GetMissingOperations(GetMissingOperationsRequest) returns (OperationBatch);
+  
+  // Cursor & Selection
+  rpc UpdateCursor(UpdateCursorRequest) returns (google.protobuf.Empty);
+  rpc UpdateSelection(UpdateSelectionRequest) returns (google.protobuf.Empty);
+  
+  // History & Undo/Redo
+  rpc GetOperationHistory(GetOperationHistoryRequest) returns (OperationHistory);
+  rpc UndoOperation(UndoOperationRequest) returns (UndoOperationResponse);
+  rpc RedoOperation(RedoOperationRequest) returns (RedoOperationResponse);
+  
+  // Permissions
+  rpc GrantPermission(GrantPermissionRequest) returns (google.protobuf.Empty);
+  rpc RevokePermission(RevokePermissionRequest) returns (google.protobuf.Empty);
+  rpc CheckPermission(CheckPermissionRequest) returns (PermissionCheckResult);
+  
+  // Document State
+  rpc GetDocumentState(GetDocumentStateRequest) returns (DocumentState);
+  rpc SaveSnapshot(SaveSnapshotRequest) returns (SnapshotInfo);
+}
+
+// ============================================
+// Session Messages
+// ============================================
+
+message CreateSessionRequest {
+  string document_id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  SessionType session_type = 4;
+  map<string, string> metadata = 5;
+}
+
+message CreateSessionResponse {
+  string session_id = 1;
+  string websocket_url = 2;
+  string token = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  bytes initial_state = 5;  // Yjs initial state
+}
+
+message JoinSessionRequest {
+  string session_id = 1;
+  string user_id = 2;
+  string user_name = 3;
+  string user_avatar = 4;
+  ClientInfo client_info = 5;
+  bytes state_vector = 6;  // Yjs state vector for sync
+}
+
+message LeaveSessionRequest {
+  string session_id = 1;
+  string user_id = 2;
+}
+
+message GetSessionInfoRequest {
+  string session_id = 1;
+}
+
+message ListActiveSessionsRequest {
+  string document_id = 1;
+  string tenant_id = 2;
+  int32 page_size = 3;
+  string page_token = 4;
+}
+
+message ListActiveSessionsResponse {
+  repeated SessionInfo sessions = 1;
+  string next_page_token = 2;
+}
+
+message CloseSessionRequest {
+  string session_id = 1;
+  string reason = 2;
+}
+
+message SessionInfo {
+  string session_id = 1;
+  string document_id = 2;
+  string tenant_id = 3;
+  SessionType session_type = 4;
+  SessionStatus status = 5;
+  repeated UserInfo active_users = 6;
+  int32 user_count = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp expires_at = 9;
+  string created_by = 10;
+  bytes yjs_state = 11;
+  int64 server_clock = 12;
+}
+
+// ============================================
+// User Info
+// ============================================
+
+message UserInfo {
+  string user_id = 1;
+  string user_name = 2;
+  string user_avatar = 3;
+  PermissionLevel permission_level = 4;
+  CursorPosition cursor = 5;
+  SelectionRange selection = 6;
+  google.protobuf.Timestamp joined_at = 7;
+  google.protobuf.Timestamp last_activity_at = 8;
+  ClientInfo client_info = 9;
+  bool is_online = 10;
+}
+
+message ClientInfo {
+  string client_type = 1;  // web, desktop, mobile
+  string version = 2;
+  string platform = 3;
+  string device_id = 4;
+}
+
+// ============================================
+// Operation Messages
+// ============================================
+
+message OperationBatch {
+  string session_id = 1;
+  string user_id = 2;
+  int64 client_clock = 3;
+  int64 server_clock = 4;
+  repeated Operation operations = 5;
+  bytes yjs_update = 6;  // Yjs binary update data
+  google.protobuf.Timestamp timestamp = 7;
+}
+
+message Operation {
+  string operation_id = 1;
+  OperationType type = 2;
+  string target_id = 3;  // element_id, layer_id, etc.
+  bytes data = 4;  // Serialized operation data
+  google.protobuf.Struct metadata = 5;
+  int64 client_clock = 6;
+  string parent_operation_id = 7;  // For undo/redo chain
+}
+
+message OperationAck {
+  string operation_id = 1;
+  AckStatus status = 2;
+  int64 server_clock = 3;
+  string error_message = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+message GetMissingOperationsRequest {
+  string session_id = 1;
+  int64 from_clock = 2;
+  int64 to_clock = 3;
+}
+
+// ============================================
+// Cursor & Selection
+// ============================================
+
+message CursorPosition {
+  string element_id = 1;
+  float x = 2;
+  float y = 3;
+  float z = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message SelectionRange {
+  repeated string element_ids = 1;
+  SelectionType type = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+message UpdateCursorRequest {
+  string session_id = 1;
+  string user_id = 2;
+  CursorPosition position = 3;
+}
+
+message UpdateSelectionRequest {
+  string session_id = 1;
+  string user_id = 2;
+  SelectionRange selection = 3;
+}
+
+// ============================================
+// History Messages
+// ============================================
+
+message GetOperationHistoryRequest {
+  string session_id = 1;
+  int32 limit = 2;
+  string cursor = 3;
+  string user_id = 4;  // Filter by user
+  OperationType type = 5;  // Filter by type
+}
+
+message OperationHistory {
+  repeated HistoricalOperation operations = 1;
+  string next_cursor = 2;
+  bool has_more = 3;
+  int32 total_count = 4;
+}
+
+message HistoricalOperation {
+  Operation operation = 1;
+  string user_id = 2;
+  string user_name = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  bool is_undone = 5;
+  google.protobuf.Timestamp undone_at = 6;
+  string undone_by = 7;
+}
+
+message UndoOperationRequest {
+  string session_id = 1;
+  string user_id = 2;
+  int32 steps = 3;
+}
+
+message UndoOperationResponse {
+  bool success = 1;
+  repeated string undone_operation_ids = 2;
+  int64 new_server_clock = 3;
+}
+
+message RedoOperationRequest {
+  string session_id = 1;
+  string user_id = 2;
+  int32 steps = 3;
+}
+
+message RedoOperationResponse {
+  bool success = 1;
+  repeated string redone_operation_ids = 2;
+  int64 new_server_clock = 3;
+}
+
+// ============================================
+// Permission Messages
+// ============================================
+
+message GrantPermissionRequest {
+  string session_id = 1;
+  string user_id = 2;
+  PermissionLevel level = 3;
+  string granted_by = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+message RevokePermissionRequest {
+  string session_id = 1;
+  string user_id = 2;
+  string revoked_by = 3;
+}
+
+message CheckPermissionRequest {
+  string session_id = 1;
+  string user_id = 2;
+  PermissionAction action = 3;
+}
+
+message PermissionCheckResult {
+  bool allowed = 1;
+  PermissionLevel current_level = 2;
+  string reason = 3;
+}
+
+// ============================================
+// Document State
+// ============================================
+
+message GetDocumentStateRequest {
+  string session_id = 1;
+  bytes state_vector = 2;  // Yjs state vector
+}
+
+message DocumentState {
+  string session_id = 1;
+  string document_id = 2;
+  bytes yjs_state = 3;
+  int64 server_clock = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  repeated string active_users = 6;
+}
+
+message SaveSnapshotRequest {
+  string session_id = 1;
+  string created_by = 2;
+  string description = 3;
+}
+
+message SnapshotInfo {
+  string snapshot_id = 1;
+  string session_id = 2;
+  string document_id = 3;
+  int64 server_clock = 4;
+  google.protobuf.Timestamp created_at = 5;
+  string created_by = 6;
+  int64 state_size_bytes = 7;
+}
+
+// ============================================
+// Collaboration Events
+// ============================================
+
+message CollaborationEvent {
+  oneof event {
+    UserJoinedEvent user_joined = 1;
+    UserLeftEvent user_left = 2;
+    OperationReceivedEvent operation_received = 3;
+    CursorUpdatedEvent cursor_updated = 4;
+    SelectionUpdatedEvent selection_updated = 5;
+    PermissionChangedEvent permission_changed = 6;
+    SessionClosedEvent session_closed = 7;
+    AwarenessUpdateEvent awareness_update = 8;
+    ErrorEvent error = 9;
+    StateSyncEvent state_sync = 10;
+  }
+}
+
+message UserJoinedEvent {
+  UserInfo user = 1;
+  google.protobuf.Timestamp joined_at = 2;
+  int32 total_users = 3;
+}
+
+message UserLeftEvent {
+  string user_id = 1;
+  google.protobuf.Timestamp left_at = 2;
+  int32 remaining_users = 3;
+}
+
+message OperationReceivedEvent {
+  Operation operation = 1;
+  string from_user_id = 2;
+  string from_user_name = 3;
+}
+
+message CursorUpdatedEvent {
+  string user_id = 1;
+  CursorPosition position = 2;
+}
+
+message SelectionUpdatedEvent {
+  string user_id = 1;
+  SelectionRange selection = 2;
+}
+
+message PermissionChangedEvent {
+  string user_id = 1;
+  PermissionLevel old_level = 2;
+  PermissionLevel new_level = 3;
+  string changed_by = 4;
+  google.protobuf.Timestamp changed_at = 5;
+}
+
+message SessionClosedEvent {
+  string reason = 1;
+  bool can_reconnect = 2;
+  google.protobuf.Timestamp closed_at = 3;
+}
+
+message AwarenessUpdateEvent {
+  map<string, bytes> states = 1;  // client_id -> awareness state
+}
+
+message ErrorEvent {
+  ErrorCode code = 1;
+  string message = 2;
+  string operation_id = 3;
+  bool recoverable = 4;
+}
+
+message StateSyncEvent {
+  bytes yjs_update = 1;
+  int64 server_clock = 2;
+}
+
+// ============================================
+// Enums
+// ============================================
+
+enum SessionType {
+  SESSION_TYPE_UNSPECIFIED = 0;
+  SESSION_TYPE_DESIGN = 1;
+  SESSION_TYPE_REVIEW = 2;
+  SESSION_TYPE_PRESENTATION = 3;
+}
+
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_ACTIVE = 1;
+  SESSION_STATUS_PAUSED = 2;
+  SESSION_STATUS_CLOSING = 3;
+  SESSION_STATUS_CLOSED = 4;
+}
+
+enum OperationType {
+  OPERATION_TYPE_UNSPECIFIED = 0;
+  OPERATION_TYPE_INSERT = 1;
+  OPERATION_TYPE_UPDATE = 2;
+  OPERATION_TYPE_DELETE = 3;
+  OPERATION_TYPE_TRANSFORM = 4;
+  OPERATION_TYPE_PROPERTY_CHANGE = 5;
+  OPERATION_TYPE_GEOMETRY_CHANGE = 6;
+  OPERATION_TYPE_STYLE_CHANGE = 7;
+  OPERATION_TYPE_LAYER_CHANGE = 8;
+  OPERATION_TYPE_GROUP_CHANGE = 9;
+}
+
+enum AckStatus {
+  ACK_STATUS_UNSPECIFIED = 0;
+  ACK_STATUS_SUCCESS = 1;
+  ACK_STATUS_REJECTED = 2;
+  ACK_STATUS_CONFLICT = 3;
+  ACK_STATUS_TIMEOUT = 4;
+  ACK_STATUS_PERMISSION_DENIED = 5;
+}
+
+enum PermissionLevel {
+  PERMISSION_LEVEL_UNSPECIFIED = 0;
+  PERMISSION_LEVEL_VIEWER = 1;
+  PERMISSION_LEVEL_COMMENTER = 2;
+  PERMISSION_LEVEL_EDITOR = 3;
+  PERMISSION_LEVEL_ADMIN = 4;
+  PERMISSION_LEVEL_OWNER = 5;
+}
+
+enum PermissionAction {
+  PERMISSION_ACTION_UNSPECIFIED = 0;
+  PERMISSION_ACTION_VIEW = 1;
+  PERMISSION_ACTION_COMMENT = 2;
+  PERMISSION_ACTION_EDIT = 3;
+  PERMISSION_ACTION_MANAGE = 4;
+  PERMISSION_ACTION_DELETE = 5;
+}
+
+enum SelectionType {
+  SELECTION_TYPE_UNSPECIFIED = 0;
+  SELECTION_TYPE_SINGLE = 1;
+  SELECTION_TYPE_MULTIPLE = 2;
+  SELECTION_TYPE_BOX = 3;
+  SELECTION_TYPE_LASSO = 4;
+}
+
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  ERROR_CODE_INVALID_OPERATION = 1;
+  ERROR_CODE_PERMISSION_DENIED = 2;
+  ERROR_CODE_SESSION_EXPIRED = 3;
+  ERROR_CODE_CONFLICT_DETECTED = 4;
+  ERROR_CODE_RATE_LIMITED = 5;
+  ERROR_CODE_INTERNAL_ERROR = 6;
+}

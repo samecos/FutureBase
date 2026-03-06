@@ -1,0 +1,42 @@
+server:
+  http_port: 8085
+  grpc_port: 9095
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: archplatform
+  schema: scripts
+  ssl_mode: disable
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+temporal:
+  host: localhost
+  port: 7233
+  namespace: script-service
+
+engine:
+  python_executable: python3
+  max_execution_time: 300
+  max_memory_mb: 512
+  sandbox_enabled: false
+  cache_results: true
+  cache_ttl_seconds: 3600
+
+sandbox:
+  type: docker
+  image: python:3.11-slim
+  network_disabled: true
+  memory_limit: 512m
+  cpu_limit: 1.0
+
+logging:
+  level: info
+  format: json

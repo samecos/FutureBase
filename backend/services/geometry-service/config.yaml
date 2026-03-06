@@ -1,0 +1,49 @@
+service:
+  name: geometry-service
+  version: "1.0.0"
+  environment: ${APP_ENV:development}
+
+database:
+  host: ${DB_HOST:localhost}
+  port: ${DB_PORT:5432}
+  user: ${DB_USER:postgres}
+  password: ${DB_PASSWORD:postgres}
+  dbname: ${DB_NAME:archdesign_geometry}
+  sslmode: ${DB_SSLMODE:disable}
+  max_open_conns: 25
+  max_idle_conns: 10
+  conn_max_lifetime: 5m
+
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+  db: ${REDIS_DB:0}
+  pool_size: 100
+
+storage:
+  type: ${STORAGE_TYPE:minio}
+  endpoint: ${STORAGE_ENDPOINT:localhost:9000}
+  access_key: ${STORAGE_ACCESS_KEY:minioadmin}
+  secret_key: ${STORAGE_SECRET_KEY:minioadmin}
+  bucket: ${STORAGE_BUCKET:geometry-files}
+  use_ssl: ${STORAGE_USE_SSL:false}
+
+server:
+  grpc_port: ${GRPC_PORT:50052}
+  http_port: ${HTTP_PORT:8082}
+  read_timeout: 30s
+  write_timeout: 30s
+  max_request_size: 104857600  # 100MB
+
+log:
+  level: ${LOG_LEVEL:info}
+  format: ${LOG_FORMAT:json}
+
+geometry:
+  default_srid: 4326
+  default_tolerance: 0.001
+  max_vertex_count: 100000
+  cache_ttl: 1h
+  enable_spatial_indexing: true
+  import_batch_size: 1000

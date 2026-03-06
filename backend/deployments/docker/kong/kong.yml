@@ -1,0 +1,242 @@
+_format_version: "3.0"
+_transform: true
+
+# ==========================================
+# Kong Declarative Configuration
+# ==========================================
+
+services:
+  # User Service
+  - name: user-service
+    url: http://user-service:8081
+    routes:
+      - name: user-routes
+        paths:
+          - /api/v1/users
+          - /api/v1/auth
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 60
+          policy: redis
+          redis_host: redis
+      - name: jwt
+        config:
+          claims_to_verify:
+            - exp
+
+  # Project Service
+  - name: project-service
+    url: http://project-service:8082
+    routes:
+      - name: project-routes
+        paths:
+          - /api/v1/projects
+          - /api/v1/members
+          - /api/v1/locks
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: redis
+          redis_host: redis
+
+  # Property Service
+  - name: property-service
+    url: http://property-service:8083
+    routes:
+      - name: property-routes
+        paths:
+          - /api/v1/properties
+          - /api/v1/templates
+          - /api/v1/groups
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 200
+          policy: redis
+          redis_host: redis
+
+  # Version Service
+  - name: version-service
+    url: http://version-service:8084
+    routes:
+      - name: version-routes
+        paths:
+          - /api/v1/versions
+          - /api/v1/branches
+          - /api/v1/merges
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: redis
+          redis_host: redis
+
+  # Search Service
+  - name: search-service
+    url: http://search-service:8089
+    routes:
+      - name: search-routes
+        paths:
+          - /api/v1/search
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 300
+          policy: redis
+          redis_host: redis
+
+  # Collaboration Service
+  - name: collaboration-service
+    url: http://collaboration-service:8081
+    routes:
+      - name: collaboration-routes
+        paths:
+          - /api/v1/collaboration
+          - /api/v1/documents
+          - /ws
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 500
+          policy: redis
+          redis_host: redis
+
+  # Geometry Service
+  - name: geometry-service
+    url: http://geometry-service:8082
+    routes:
+      - name: geometry-routes
+        paths:
+          - /api/v1/geometry
+          - /api/v1/spatial
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 200
+          policy: redis
+          redis_host: redis
+
+  # Script Service
+  - name: script-service
+    url: http://script-service:8085
+    routes:
+      - name: script-routes
+        paths:
+          - /api/v1/scripts
+          - /api/v1/executions
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 50
+          policy: redis
+          redis_host: redis
+
+  # File Service
+  - name: file-service
+    url: http://file-service:8086
+    routes:
+      - name: file-routes
+        paths:
+          - /api/v1/files
+          - /api/v1/uploads
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+          policy: redis
+          redis_host: redis
+
+  # Notification Service
+  - name: notification-service
+    url: http://notification-service:8087
+    routes:
+      - name: notification-routes
+        paths:
+          - /api/v1/notifications
+          - /api/v1/preferences
+          - /api/v1/webhook
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 200
+          policy: redis
+          redis_host: redis
+
+  # Analytics Service
+  - name: analytics-service
+    url: http://analytics-service:8090
+    routes:
+      - name: analytics-routes
+        paths:
+          - /api/v1/analytics
+          - /api/v1/reports
+          - /api/v1/metrics
+        strip_path: false
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 150
+          policy: redis
+          redis_host: redis
+
+consumers:
+  - username: anonymous
+  - username: authenticated
+
+plugins:
+  # Global CORS
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:3000"
+        - "https://*.archplatform.com"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Authorization
+        - Content-Type
+        - X-Request-ID
+      credentials: true
+      max_age: 3600
+
+  # Global Rate Limiting
+  - name: rate-limiting
+    config:
+      minute: 1000
+      policy: redis
+      redis_host: redis
+      redis_port: 6379
+
+  # Request Transformer - Add correlation ID
+  - name: request-transformer
+    config:
+      add:
+        headers:
+          - X-Kong-Request-ID:$(request_id)
+
+  # Response Transformer - Add security headers
+  - name: response-transformer
+    config:
+      add:
+        headers:
+          - X-Frame-Options:DENY
+          - X-Content-Type-Options:nosniff
+          - X-XSS-Protection:1; mode=block
+          - Strict-Transport-Security:max-age=31536000; includeSubDomains

@@ -1,0 +1,56 @@
+server:
+  http_port: 8087
+  websocket_port: 8088
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: archplatform
+  schema: notifications
+  ssl_mode: disable
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+kafka:
+  brokers:
+    - localhost:9092
+  topics:
+    - project-events
+    - user-events
+    - system-events
+  group_id: notification-service
+
+email:
+  enabled: true
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  username: ""
+  password: ""
+  from_address: noreply@archplatform.com
+  from_name: ArchPlatform
+
+webhook:
+  enabled: true
+  max_retries: 3
+  timeout_seconds: 30
+  retry_delay_seconds: 5
+
+websocket:
+  enabled: true
+  heartbeat_interval: 30
+
+notification:
+  batch_size: 100
+  batch_interval_ms: 1000
+  max_notifications_per_user: 1000
+  retention_days: 90
+
+logging:
+  level: info
+  format: json

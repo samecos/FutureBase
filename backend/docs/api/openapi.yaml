@@ -1,0 +1,855 @@
+openapi: 3.0.3
+info:
+  title: Architecture Platform API
+  description: |
+    # Architecture Platform API
+    
+    Complete API documentation for the Architecture Platform microservices.
+    
+    ## Authentication
+    All API requests require a JWT token in the Authorization header:
+    ```
+    Authorization: Bearer <token>
+    ```
+    
+    ## Rate Limiting
+    API requests are rate-limited per service:
+    - User Service: 60 requests/minute
+    - Project Service: 100 requests/minute
+    - Property Service: 200 requests/minute
+    - Version Service: 100 requests/minute
+    - Search Service: 300 requests/minute
+    - Collaboration Service: 500 requests/minute
+    - Geometry Service: 200 requests/minute
+    - Script Service: 50 requests/minute
+    - File Service: 100 requests/minute
+    - Notification Service: 200 requests/minute
+    - Analytics Service: 150 requests/minute
+  version: 1.0.0
+  contact:
+    name: Architecture Platform Team
+    email: api@archplatform.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.archplatform.com/api/v1
+    description: Production server
+  - url: https://api-dev.archplatform.com/api/v1
+    description: Development server
+  - url: http://localhost:8000/api/v1
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Users
+    description: User management
+  - name: Projects
+    description: Project management
+  - name: Properties
+    description: Property management and calculations
+  - name: Versions
+    description: Version control and branching
+  - name: Search
+    description: Full-text search
+  - name: Collaboration
+    description: Real-time collaboration
+  - name: Geometry
+    description: Geometry operations
+  - name: Files
+    description: File management
+  - name: Scripts
+    description: Script execution
+  - name: Notifications
+    description: Notifications and webhooks
+  - name: Analytics
+    description: Analytics and reporting
+
+paths:
+  # ==========================================
+  # Authentication
+  # ==========================================
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+
+  /auth/mfa/setup:
+    post:
+      tags: [Authentication]
+      summary: Setup MFA
+      responses:
+        '200':
+          description: MFA setup initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret:
+                    type: string
+                  qr_code:
+                    type: string
+
+  # ==========================================
+  # Users
+  # ==========================================
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUsers'
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user
+      responses:
+        '200':
+          description: Current user details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # ==========================================
+  # Projects
+  # ==========================================
+  /projects:
+    get:
+      tags: [Projects]
+      summary: List projects
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, archived, deleted]
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjects'
+
+    post:
+      tags: [Projects]
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  /projects/{id}:
+    get:
+      tags: [Projects]
+      summary: Get project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  # ==========================================
+  # Properties
+  # ==========================================
+  /properties:
+    get:
+      tags: [Properties]
+      summary: List properties
+      responses:
+        '200':
+          description: List of properties
+
+    post:
+      tags: [Properties]
+      summary: Create property
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Property'
+      responses:
+        '201':
+          description: Property created
+
+  /properties/{id}/calculate:
+    post:
+      tags: [Properties]
+      summary: Calculate property value
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                values:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Calculation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: number
+                  unit:
+                    type: string
+
+  # ==========================================
+  # Versions
+  # ==========================================
+  /versions:
+    get:
+      tags: [Versions]
+      summary: List versions
+      responses:
+        '200':
+          description: List of versions
+
+  /versions/branches:
+    get:
+      tags: [Versions]
+      summary: List branches
+      responses:
+        '200':
+          description: List of branches
+
+    post:
+      tags: [Versions]
+      summary: Create branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                source_version_id:
+                  type: string
+      responses:
+        '201':
+          description: Branch created
+
+  /versions/merges:
+    post:
+      tags: [Versions]
+      summary: Create merge request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source_branch_id:
+                  type: string
+                target_branch_id:
+                  type: string
+      responses:
+        '201':
+          description: Merge request created
+
+  # ==========================================
+  # Search
+  # ==========================================
+  /search:
+    get:
+      tags: [Search]
+      summary: Search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [project, user, file, all]
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResults'
+
+  /search/suggestions:
+    get:
+      tags: [Search]
+      summary: Search suggestions
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search suggestions
+
+  # ==========================================
+  # Files
+  # ==========================================
+  /files:
+    post:
+      tags: [Files]
+      summary: Upload file
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                project_id:
+                  type: string
+      responses:
+        '201':
+          description: File uploaded
+
+  /files/{id}/download:
+    get:
+      tags: [Files]
+      summary: Download file
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  # ==========================================
+  # Scripts
+  # ==========================================
+  /scripts:
+    post:
+      tags: [Scripts]
+      summary: Create script
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Script'
+      responses:
+        '201':
+          description: Script created
+
+  /scripts/{id}/execute:
+    post:
+      tags: [Scripts]
+      summary: Execute script
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                inputs:
+                  type: object
+      responses:
+        '200':
+          description: Execution result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  output:
+                    type: string
+                  execution_time_ms:
+                    type: integer
+
+  # ==========================================
+  # Notifications
+  # ==========================================
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      responses:
+        '200':
+          description: List of notifications
+
+    post:
+      tags: [Notifications]
+      summary: Send notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Notification'
+      responses:
+        '201':
+          description: Notification sent
+
+  /notifications/preferences:
+    get:
+      tags: [Notifications]
+      summary: Get notification preferences
+      responses:
+        '200':
+          description: User preferences
+
+  # ==========================================
+  # Analytics
+  # ==========================================
+  /analytics/events:
+    post:
+      tags: [Analytics]
+      summary: Track event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyticsEvent'
+      responses:
+        '202':
+          description: Event accepted
+
+  /analytics/reports/{id}:
+    get:
+      tags: [Analytics]
+      summary: Get report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report data
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 0
+
+    PageSizeParam:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        default: 20
+        maximum: 100
+
+  schemas:
+    # Requests
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        first_name:
+          type: string
+        last_name:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        mfa_code:
+          type: string
+
+    CreateProjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 2000
+        location:
+          type: string
+        metadata:
+          type: object
+
+    # Responses
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        avatar_url:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        mfa_enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+        token_type:
+          type: string
+          default: Bearer
+        user:
+          $ref: '#/components/schemas/User'
+        mfa_required:
+          type: boolean
+
+    TokenPair:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        owner_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, archived, deleted]
+        member_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Property:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        data_type:
+          type: string
+        value:
+          type: string
+        unit:
+          type: string
+        expression:
+          type: string
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [email, push, webhook, sms]
+        title:
+          type: string
+        content:
+          type: string
+        recipient_id:
+          type: string
+          format: uuid
+
+    AnalyticsEvent:
+      type: object
+      required: [event_name]
+      properties:
+        event_name:
+          type: string
+        event_type:
+          type: string
+        properties:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+    # Pagination
+    PaginatedUsers:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_count:
+          type: integer
+        total_pages:
+          type: integer
+
+    PaginatedProjects:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_count:
+          type: integer
+        total_pages:
+          type: integer
+
+    SearchResults:
+      type: object
+      properties:
+        query:
+          type: string
+        total:
+          type: integer
+        hits:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              type:
+                type: string
+              title:
+                type: string
+              highlight:
+                type: string
+
+    # Error
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

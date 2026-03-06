@@ -1,0 +1,86 @@
+server:
+  port: 8089
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: search-service
+  
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+    username: ${ELASTICSEARCH_USERNAME:}
+    password: ${ELASTICSEARCH_PASSWORD:}
+    connection-timeout: 5s
+    socket-timeout: 30s
+  
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: search-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.archplatform.search.event
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-here-for-development-only-change-in-production}
+
+# Search Configuration
+search:
+  indices:
+    projects: projects
+    designs: designs
+    elements: elements
+    users: users
+    files: files
+  
+  settings:
+    default_page_size: 20
+    max_page_size: 100
+    highlight_enabled: true
+    highlight_fragments: 3
+    highlight_fragment_size: 150
+    
+  suggestions:
+    enabled: true
+    max_suggestions: 10
+    min_query_length: 2
+
+# Management
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# Logging
+logging:
+  level:
+    com.archplatform.search: INFO
+    org.elasticsearch.client: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  
+logging:
+  level:
+    com.archplatform.search: DEBUG
+    org.elasticsearch.client: DEBUG

@@ -1,0 +1,57 @@
+{
+  "info": {
+    "name": "User-Project E2E Flow",
+    "description": "End-to-end test flow for user registration and project creation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. User Registration",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"e2e-test-user\",\n  \"email\": \"e2e-test@example.com\",\n  \"password\": \"TestPassword123\",\n  \"firstName\": \"E2E\",\n  \"lastName\": \"Test\"\n}"
+        },
+        "url": { "raw": "{{gateway_url}}/api/v1/auth/register" }
+      }
+    },
+    {
+      "name": "2. User Login",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"e2e-test-user\",\n  \"password\": \"TestPassword123\"\n}"
+        },
+        "url": { "raw": "{{gateway_url}}/api/v1/auth/login" }
+      }
+    },
+    {
+      "name": "3. Create Project",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{access_token}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"E2E Test Project\",\n  \"description\": \"Project created during E2E test\"\n}"
+        },
+        "url": { "raw": "{{gateway_url}}/api/v1/projects" }
+      }
+    },
+    {
+      "name": "4. Get Project",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
+        "url": { "raw": "{{gateway_url}}/api/v1/projects/{{project_id}}" }
+      }
+    }
+  ],
+  "variable": [{ "key": "gateway_url", "value": "http://localhost:8000" }]
+}
