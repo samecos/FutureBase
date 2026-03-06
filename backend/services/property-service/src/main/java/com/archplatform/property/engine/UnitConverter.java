@@ -7,7 +7,7 @@ import javax.measure.Unit;
 import javax.measure.quantity.*;
 import javax.measure.spi.ServiceProvider;
 import java.math.BigDecimal;
-import java.math.RoundingScale;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,30 +32,30 @@ public class UnitConverter {
         unitRegistry.put("ft", FOOT);
         unitRegistry.put("in", INCH);
         unitRegistry.put("yd", YARD);
-        
+
         // Area
         unitRegistry.put("m2", SQUARE_METRE);
         unitRegistry.put("cm2", CENTI(METRE).multiply(CENTI(METRE)));
         unitRegistry.put("mm2", MILLI(METRE).multiply(MILLI(METRE)));
         unitRegistry.put("ft2", SQUARE_FOOT);
         unitRegistry.put("in2", SQUARE_INCH);
-        
+
         // Volume
         unitRegistry.put("m3", CUBIC_METRE);
         unitRegistry.put("l", LITRE);
         unitRegistry.put("ml", MILLI(LITRE));
         unitRegistry.put("gal", GALLON_LIQUID_US);
         unitRegistry.put("ft3", CUBIC_FOOT);
-        
+
         // Angle
         unitRegistry.put("deg", DEGREE_ANGLE);
         unitRegistry.put("rad", RADIAN);
-        
+
         // Temperature
         unitRegistry.put("c", CELSIUS);
         unitRegistry.put("f", FAHRENHEIT);
         unitRegistry.put("k", KELVIN);
-        
+
         // Pressure
         unitRegistry.put("pa", PASCAL);
         unitRegistry.put("kpa", KILO(PASCAL));
@@ -83,12 +83,12 @@ public class UnitConverter {
             }
 
             BigDecimal numericValue = new BigDecimal(value);
-            
+
             javax.measure.UnitConverter converter = sourceUnit.getConverterToAny(targetUnit);
             Number converted = converter.convert(numericValue);
-            
+
             return new BigDecimal(converted.toString()).stripTrailingZeros().toPlainString();
-            
+
         } catch (Exception e) {
             log.error("Unit conversion failed: {} {} to {}", value, fromUnit, toUnit, e);
             return value;

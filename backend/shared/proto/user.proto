@@ -9,6 +9,7 @@ option java_outer_classname = "UserProto";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
 import "common.proto";
 
 // ============================================
@@ -22,28 +23,28 @@ service UserService {
   rpc UpdateUser(UpdateUserRequest) returns (User);
   rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
-  
+
   // Authentication
   rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
   rpc RefreshToken(RefreshTokenRequest) returns (AuthenticateResponse);
   rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
-  
+
   // Password Management
   rpc ChangePassword(ChangePasswordRequest) returns (google.protobuf.Empty);
   rpc RequestPasswordReset(RequestPasswordResetRequest) returns (google.protobuf.Empty);
   rpc ResetPassword(ResetPasswordRequest) returns (google.protobuf.Empty);
-  
+
   // MFA
   rpc SetupMFA(SetupMFARequest) returns (SetupMFAResponse);
   rpc VerifyMFA(VerifyMFARequest) returns (google.protobuf.Empty);
   rpc DisableMFA(DisableMFARequest) returns (google.protobuf.Empty);
-  
+
   // Profile
   rpc GetProfile(GetProfileRequest) returns (UserProfile);
   rpc UpdateProfile(UpdateProfileRequest) returns (UserProfile);
   rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
-  
+
   // User Sessions
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
   rpc RevokeSession(RevokeSessionRequest) returns (google.protobuf.Empty);
@@ -132,12 +133,12 @@ message ListUsersRequest {
   string search = 2;
   repeated UserRole roles = 3;
   UserStatus status = 4;
-  PaginationRequest pagination = 5;
+  archdesign.common.v1.PaginationRequest pagination = 5;
 }
 
 message ListUsersResponse {
   repeated User users = 1;
-  PaginationResponse pagination = 2;
+  archdesign.common.v1.PaginationResponse pagination = 2;
 }
 
 // ============================================

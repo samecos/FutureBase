@@ -10,6 +10,7 @@ option java_outer_classname = "GeometryProto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
+import "google/protobuf/field_mask.proto";
 import "common.proto";
 
 // ============================================
@@ -25,14 +26,14 @@ service GeometryService {
   rpc BatchCreateGeometry(BatchCreateGeometryRequest) returns (BatchGeometryResponse);
   rpc BatchUpdateGeometry(BatchUpdateGeometryRequest) returns (BatchGeometryResponse);
   rpc BatchDeleteGeometry(BatchDeleteGeometryRequest) returns (google.protobuf.Empty);
-  
+
   // Spatial Queries
   rpc QueryByBoundingBox(BoundingBoxQueryRequest) returns (GeometryCollection);
   rpc QueryByRadius(RadiusQueryRequest) returns (GeometryCollection);
   rpc QueryNearest(NearestQueryRequest) returns (GeometryCollection);
   rpc QueryIntersecting(IntersectionQueryRequest) returns (GeometryCollection);
   rpc SpatialQuery(SpatialQueryRequest) returns (GeometryCollection);
-  
+
   // Geometric Operations
   rpc Transform(TransformRequest) returns (Geometry);
   rpc BooleanOperation(BooleanOperationRequest) returns (Geometry);
@@ -41,17 +42,17 @@ service GeometryService {
   rpc CalculateDistance(DistanceRequest) returns (DistanceResponse);
   rpc CalculateCentroid(CalculateRequest) returns (Point);
   rpc CalculateBoundingBox(CalculateRequest) returns (BoundingBox3D);
-  
+
   // Validation & Repair
   rpc ValidateGeometry(ValidateRequest) returns (ValidateResponse);
   rpc RepairGeometry(RepairRequest) returns (Geometry);
   rpc SimplifyGeometry(SimplifyRequest) returns (Geometry);
-  
+
   // Import/Export
   rpc ImportGeometry(ImportRequest) returns (ImportResponse);
   rpc ExportGeometry(ExportRequest) returns (ExportResponse);
   rpc ConvertFormat(ConvertRequest) returns (ConvertResponse);
-  
+
   // BIM Operations
   rpc ParseBIMFile(ParseBIMFileRequest) returns (stream ParseProgress);
   rpc GetBIMMetadata(GetBIMMetadataRequest) returns (BIMMetadata);
@@ -238,7 +239,7 @@ message Compound {
 message Transform {
   // 4x4 transformation matrix (column-major order)
   repeated double matrix = 1;
-  
+
   // Alternative: decomposed transform
   Point translation = 2;
   Rotation rotation = 3;

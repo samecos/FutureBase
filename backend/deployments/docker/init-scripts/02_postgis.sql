@@ -2,8 +2,8 @@
 -- PostGIS Geometry Database Setup
 -- ============================================
 
--- Connect to geometry database
-\c archdesign_geometry;
+-- Connect to main database
+\c archdesign_platform;
 
 -- Enable PostGIS extensions
 CREATE EXTENSION IF NOT EXISTS postgis;
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS geometry.geometry_snapshots (
     length              DECIMAL(18, 6),
     vertex_count        INTEGER,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
+
     UNIQUE(snapshot_id, geometry_id)
 );
 
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS geometry.spatial_index (
     min_y               DECIMAL(18, 6),
     max_x               DECIMAL(18, 6),
     max_y               DECIMAL(18, 6),
-    
+
     UNIQUE(geometry_id, grid_level)
 );
 
@@ -100,13 +100,13 @@ CREATE TABLE IF NOT EXISTS geometry.spatial_relations (
     target_geometry_id  UUID NOT NULL REFERENCES geometry.geometries(id) ON DELETE CASCADE,
     relation_type       VARCHAR(50) NOT NULL
                         CHECK (relation_type IN (
-                            'intersects', 'contains', 'within', 'touches', 
+                            'intersects', 'contains', 'within', 'touches',
                             'crosses', 'overlaps', 'equals', 'disjoint', 'distance'
                         )),
     distance_mm         DECIMAL(18, 6),
     overlap_area        DECIMAL(18, 6),
     computed_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
+
     UNIQUE(source_geometry_id, target_geometry_id, relation_type)
 );
 
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS geometry.bim_elements (
     properties          JSONB DEFAULT '{}',
     geometry_id         UUID REFERENCES geometry.geometries(id),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
+
     UNIQUE(bim_metadata_id, element_id)
 );
 
@@ -220,23 +220,23 @@ BEGIN
     IF GeometryType(NEW.geom_2d) IN ('POLYGON', 'MULTIPOLYGON') THEN
         NEW.area := ST_Area(NEW.geom_2d::GEOGRAPHY)::DECIMAL(18, 6);
     END IF;
-    
+
     -- Calculate length
     IF GeometryType(NEW.geom_2d) IN ('LINESTRING', 'MULTILINESTRING') THEN
         NEW.length := ST_Length(NEW.geom_2d::GEOGRAPHY)::DECIMAL(18, 6);
     END IF;
-    
+
     -- Calculate perimeter for polygons
     IF GeometryType(NEW.geom_2d) IN ('POLYGON', 'MULTIPOLYGON') THEN
         NEW.perimeter := ST_Perimeter(NEW.geom_2d::GEOGRAPHY)::DECIMAL(18, 6);
     END IF;
-    
+
     -- Calculate bounding box
     NEW.bbox := ST_Envelope(NEW.geom_2d);
-    
+
     -- Calculate vertex count
     NEW.vertex_count := ST_NPoints(NEW.geom_2d);
-    
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -258,16 +258,16 @@ DECLARE
 BEGIN
     SELECT geom_2d, project_id, design_id INTO v_rec
     FROM geometry.geometries WHERE id = p_geometry_id;
-    
+
     IF v_rec.geom_2d IS NULL THEN
         RETURN;
     END IF;
-    
+
     v_bbox := ST_Envelope(v_rec.geom_2d);
-    
+
     -- Delete old indexes
     DELETE FROM geometry.spatial_index WHERE geometry_id = p_geometry_id;
-    
+
     -- Insert new indexes (multi-level grid)
     FOR i IN 0..3 LOOP
         INSERT INTO geometry.spatial_index (
@@ -307,9 +307,9 @@ DECLARE
     v_bbox GEOMETRY;
 BEGIN
     v_bbox := ST_MakeEnvelope(p_min_x, p_min_y, p_max_x, p_max_y, 4326);
-    
+
     RETURN QUERY
-    SELECT 
+    SELECT
         g.id, g.element_id, g.geometry_type, g.geom_2d, g.area, g.length
     FROM geometry.geometries g
     WHERE g.bbox && v_bbox  -- Bounding box intersection
@@ -341,9 +341,9 @@ BEGIN
     v_center := ST_SetSRID(ST_MakePoint(p_center_x, p_center_y), 4326);
     -- Rough conversion: 1 degree ≈ 111km
     v_radius_degrees := p_radius_meters / 111000.0;
-    
+
     RETURN QUERY
-    SELECT 
+    SELECT
         g.id, g.element_id, g.geometry_type,
         ST_Distance(g.geom_2d::GEOGRAPHY, v_center::GEOGRAPHY)::DECIMAL as distance_meters,
         g.geom_2d
@@ -365,19 +365,19 @@ DECLARE
     v_simplified GEOMETRY;
 BEGIN
     SELECT geom_2d INTO v_geom FROM geometry.geometries WHERE id = p_geometry_id;
-    
+
     IF v_geom IS NULL THEN
         RETURN NULL;
     END IF;
-    
+
     -- Use Douglas-Peucker algorithm
     v_simplified := ST_SimplifyPreserveTopology(v_geom, p_tolerance_meters / 111000.0);
-    
+
     -- Update simplified geometry
-    UPDATE geometry.geometries 
-    SET geom_simplified = v_simplified 
+    UPDATE geometry.geometries
+    SET geom_simplified = v_simplified
     WHERE id = p_geometry_id;
-    
+
     RETURN v_simplified;
 END;
 $$ LANGUAGE plpgsql;
@@ -413,7 +413,7 @@ BEGIN
     WHERE (p_project_id IS NULL OR g.project_id = p_project_id)
       AND (p_design_id IS NULL OR g.design_id = p_design_id)
       AND (p_element_ids IS NULL OR g.element_id = ANY(p_element_ids));
-    
+
     RETURN COALESCE(v_result, '{"type": "FeatureCollection", "features": []}'::JSONB);
 END;
 $$ LANGUAGE plpgsql;

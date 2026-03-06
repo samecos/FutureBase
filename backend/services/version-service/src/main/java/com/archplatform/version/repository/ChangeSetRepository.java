@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,7 +29,7 @@ public interface ChangeSetRepository extends JpaRepository<ChangeSet, UUID> {
     long countByVersionId(@Param("versionId") UUID versionId);
 
     @Query("SELECT cs FROM ChangeSet cs WHERE cs.designId = :designId AND cs.createdAt BETWEEN :startDate AND :endDate ORDER BY cs.createdAt")
-    List<ChangeSet> findAllByDesignIdAndDateRange(@Param("designId") UUID designId, 
-                                                   @Param("startDate") LocalDateTime startDate, 
+    List<ChangeSet> findAllByDesignIdAndDateRange(@Param("designId") UUID designId,
+                                                   @Param("startDate") LocalDateTime startDate,
                                                    @Param("endDate") LocalDateTime endDate);
 }

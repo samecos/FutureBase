@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -99,7 +100,7 @@ public class MergeService {
             .build();
 
         MergeRequest saved = mergeRequestRepository.save(mr);
-        log.info("Created merge request: {} from branch {} to branch {}", 
+        log.info("Created merge request: {} from branch {} to branch {}",
             saved.getId(), sourceBranch.getName(), targetBranch.getName());
 
         return mapToDTO(saved);
@@ -130,7 +131,7 @@ public class MergeService {
             .tenantId(mr.getTenantId())
             .designId(mr.getDesignId())
             .branch(targetBranch)
-            .versionNumber((versionRepository.findMaxVersionNumberByBranchId(targetBranch.getId()) != null ? 
+            .versionNumber((versionRepository.findMaxVersionNumberByBranchId(targetBranch.getId()) != null ?
                 versionRepository.findMaxVersionNumberByBranchId(targetBranch.getId()) : 0) + 1)
             .description("Merge from " + sourceVersion.getBranch().getName() + "/v" + sourceVersion.getVersionNumber())
             .status(Version.VersionStatus.COMMITTED)
@@ -145,7 +146,7 @@ public class MergeService {
         Version savedVersion = versionRepository.save(mergedVersion);
 
         // Update merge request
-        mergeRequestRepository.markAsMerged(mergeRequestId, MergeRequest.MergeStatus.MERGED, 
+        mergeRequestRepository.markAsMerged(mergeRequestId, MergeRequest.MergeStatus.MERGED,
             userId, LocalDateTime.now(), savedVersion.getId());
 
         // Update branch head
@@ -200,6 +201,15 @@ public class MergeService {
         return mapToDTO(saved);
     }
 
+    private com.fasterxml.jackson.databind.JsonNode parseConflictResolution(String conflictResolution) {
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().readTree(conflictResolution);
+        } catch (Exception e) {
+            log.error("Failed to parse conflict resolution: {}", conflictResolution, e);
+            return null;
+        }
+    }
+
     private MergeRequestDTO mapToDTO(MergeRequest mr) {
         String sourceBranchName = branchRepository.findById(mr.getSourceBranchId())
             .map(Branch::getName).orElse("Unknown");
@@ -208,7 +218,7 @@ public class MergeService {
 
         Integer sourceVersionNumber = versionRepository.findById(mr.getSourceVersionId())
             .map(Version::getVersionNumber).orElse(null);
-        Integer targetVersionNumber = mr.getTargetVersionId() != null ? 
+        Integer targetVersionNumber = mr.getTargetVersionId() != null ?
             versionRepository.findById(mr.getTargetVersionId()).map(Version::getVersionNumber).orElse(null) : null;
 
         return MergeRequestDTO.builder()
@@ -226,8 +236,8 @@ public class MergeService {
             .description(mr.getDescription())
             .status(mr.getStatus().name())
             .conflictCount(mr.getConflictCount())
-            .conflictResolution(mr.getConflictResolution() != null ? 
-                new com.fasterxml.jackson.databind.ObjectMapper().readTree(mr.getConflictResolution()) : null)
+            .conflictResolution(mr.getConflictResolution() != null ?
+                parseConflictResolution(mr.getConflictResolution()) : null)
             .createdBy(mr.getCreatedBy())
             .assignedTo(mr.getAssignedTo())
             .mergedBy(mr.getMergedBy())

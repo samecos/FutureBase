@@ -6,9 +6,9 @@ server:
 spring:
   application:
     name: property-service
-  
+
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:archplatform}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:archdesign_platform}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -18,10 +18,10 @@ spring:
       connection-timeout: 20000
       idle-timeout: 300000
       max-lifetime: 1200000
-  
+
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: create-drop
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -31,13 +31,13 @@ spring:
         order_inserts: true
         order_updates: true
     show-sql: false
-  
+
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     schemas: core
-  
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -49,13 +49,13 @@ spring:
           max-active: 10
           max-idle: 8
           min-idle: 2
-  
+
   cache:
     type: redis
     redis:
       time-to-live: 3600000
       cache-null-values: false
-  
+
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -111,7 +111,7 @@ spring:
       on-profile: dev
   jpa:
     show-sql: true
-  
+
 logging:
   level:
     com.archplatform.property: DEBUG
